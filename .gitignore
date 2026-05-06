@@ -1,1 +1,2 @@
-(docs/backend_file_and_fogers_organization.md)
+# Documentation files are source content - no ignores needed for the provided changes
+# The added markdown files in docs/ are source documentation and should be tracked
