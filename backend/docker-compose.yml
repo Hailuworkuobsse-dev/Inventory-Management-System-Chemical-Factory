@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: aims-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-aims_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-aims_password}
+      POSTGRES_DB: ${DB_NAME:-aims_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks:
+      - aims-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-aims_user} -d ${DB_NAME:-aims_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and BullMQ queues
+  redis:
+    image: redis:7-alpine
+    container_name: aims-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_password}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - aims-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MQTT Broker for IoT devices
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: aims-mqtt
+    restart: unless-stopped
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+      - "${MQTT_WS_PORT:-9001}:9001"
+    volumes:
+      - ./mqtt/config:/mosquitto/config:ro
+      - mqtt_data:/mosquitto/data
+      - mqtt_logs:/mosquitto/log
+    networks:
+      - aims-network
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$SYS/#", "-C", "1", "-W", "5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aims-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      DATABASE_URL: postgresql://${DB_USER:-aims_user}:${DB_PASSWORD:-aims_password}@db:5432/${DB_NAME:-aims_db}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password}
+      MQTT_BROKER_URL: mqtt://mqtt:1883
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
+      ERIS_API_URL: ${ERIS_API_URL}
+      ERIS_API_KEY: ${ERIS_API_KEY}
+      ERP_API_URL: ${ERP_API_URL}
+      ERP_API_KEY: ${ERP_API_KEY}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    networks:
+      - aims-network
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    command: >
+      sh -c "npx prisma migrate deploy && 
+             npx prisma generate && 
+             node src/server.js"
+
+  # Background Worker (optional, for heavy jobs)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aims-worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${DB_USER:-aims_user}:${DB_PASSWORD:-aims_password}@db:5432/${DB_NAME:-aims_db}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password}
+      MQTT_BROKER_URL: mqtt://mqtt:1883
+    depends_on:
+      - db
+      - redis
+      - api
+    networks:
+      - aims-network
+    command: >
+      sh -c "node src/jobs/worker.js"
+
+networks:
+  aims-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  mqtt_data:
+  mqtt_logs:
