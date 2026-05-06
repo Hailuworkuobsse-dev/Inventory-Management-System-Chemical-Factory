@@ -1,0 +1,28 @@
+# MQTT ACL Configuration for AIMS
+# Format: topic [read|write|readwrite] [pattern]
+
+# Admin users can access all topics
+topic readwrite #
+
+# IoT devices - publish sensor data, receive commands
+topic readwrite iot/sensors/+
+topic readwrite iot/devices/+
+topic read iot/commands/+
+
+# Temperature sensors
+topic write iot/sensors/temperature/+
+topic read iot/commands/temperature/+
+
+# Humidity sensors
+topic write iot/sensors/humidity/+
+topic read iot/commands/humidity/+
+
+# Alert notifications
+topic read alerts/expiry/+
+topic read alerts/stock-out/+
+topic read alerts/recall/+
+topic read alerts/excursion/+
+
+# System status
+topic read system/status
+topic read system/health
