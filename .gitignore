@@ -1,5 +1,4 @@
-(docs/functional_requirements.md) is a markdown file, which belongs to the category of source code or configuration files (.md), so according to rule 6, an empty .gitignore should be output.
+(docs/Technical_Specification_Document.md is just a markdown documentation file, which should not be ignored)
 
-```gitignore
-
-```
+# No files in the change list require ignoring according to the rules
+# Source files like .md should not be ignored unless they are clearly generated or sensitive
