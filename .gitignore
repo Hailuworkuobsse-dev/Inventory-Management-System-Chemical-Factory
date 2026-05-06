@@ -1,4 +1,1 @@
-(docs/Technical_Specification_Document.md is just a markdown documentation file, which should not be ignored)
-
-# No files in the change list require ignoring according to the rules
-# Source files like .md should not be ignored unless they are clearly generated or sensitive
+(docs/Database_Design.md)
