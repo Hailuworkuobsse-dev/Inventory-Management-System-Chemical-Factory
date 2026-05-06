@@ -1,0 +1,5 @@
+(docs/functional_requirements.md) is a markdown file, which belongs to the category of source code or configuration files (.md), so according to rule 6, an empty .gitignore should be output.
+
+```gitignore
+
+```
