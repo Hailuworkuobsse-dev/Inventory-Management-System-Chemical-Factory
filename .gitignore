@@ -1,2 +1,65 @@
-# Documentation files are source content - no ignores needed for the provided changes
-# The added markdown files in docs/ are source documentation and should be tracked
+```
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+*.js
+*.jsx
+*.ts
+*.tsx
+
+# Environment variables
+.env
+.env.local
+.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+*.swp
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Coverage reports
+coverage/
+htmlcov/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.nyc_output/
+coverage/
+
+# Distribution / packaging
+.Python
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+
+# IDE specific
+*.swp
+*.swo
+*~
+
+# Frontend build artifacts
+.next/
+.nuxt/
+public/dist/
+```
