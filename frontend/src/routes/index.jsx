@@ -1,4 +1,5 @@
 import React from 'react';
+import { Outlet } from 'react-router-dom';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Layouts

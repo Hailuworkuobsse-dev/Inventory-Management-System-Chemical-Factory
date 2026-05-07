@@ -2,25 +2,32 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { loginStart, loginSuccess, loginFailure, logout } from '../../store/slices/authSlice';
-import { apiSlice } from '../../services/apiSlice';
+import {
+  useLoginMutation,
+  useLogoutMutation,
+  useRefreshTokenMutation,
+  useChangePasswordMutation,
+} from '../../../services/authEndpoints';
 
 export const useAuth = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, token, isAuthenticated, loading } = useSelector((state) => state.auth);
-
+  
   const [error, setError] = useState(null);
-
+  
+  // RTK Query hooks
+  const [loginMutation] = useLoginMutation();
+  const [logoutMutation] = useLogoutMutation();
+  const [refreshTokenMutation] = useRefreshTokenMutation();
+  const [changePasswordMutation] = useChangePasswordMutation();
+  
   const login = async (credentials) => {
     dispatch(loginStart());
     setError(null);
 
     try {
-      // Using RTK Query mutation - will be defined in auth endpoints
-      const response = await dispatch(
-        apiSlice.endpoints.login.initiate(credentials)
-      ).unwrap();
-
+      const response = await loginMutation(credentials).unwrap();
       dispatch(loginSuccess(response));
       navigate('/dashboard');
       return response;
@@ -34,7 +41,7 @@ export const useAuth = () => {
 
   const logoutUser = async () => {
     try {
-      await dispatch(apiSlice.endpoints.logout.initiate()).unwrap();
+      await logoutMutation().unwrap();
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
@@ -45,9 +52,7 @@ export const useAuth = () => {
 
   const refreshToken = async () => {
     try {
-      const response = await dispatch(
-        apiSlice.endpoints.refreshToken.initiate()
-      ).unwrap();
+      const response = await refreshTokenMutation().unwrap();
       
       dispatch(loginSuccess({ token: response.token, user }));
       return response;
@@ -60,9 +65,7 @@ export const useAuth = () => {
 
   const changePassword = async (passwordData) => {
     try {
-      await dispatch(
-        apiSlice.endpoints.changePassword.initiate(passwordData)
-      ).unwrap();
+      await changePasswordMutation(passwordData).unwrap();
       return { success: true };
     } catch (err) {
       const errorMessage = err?.data?.message || 'Password change failed';
