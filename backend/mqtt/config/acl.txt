@@ -1,3 +1,4 @@
+
 # MQTT ACL Configuration for AIMS
 # Format: topic [read|write|readwrite] [pattern]
 
