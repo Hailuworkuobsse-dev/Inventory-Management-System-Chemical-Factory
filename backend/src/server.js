@@ -5,16 +5,47 @@ const config = require('./config');
 
 /**
  * Server Entry Point
- * - Connects to the database
+ * - Validates environment configuration
+ * - Connects to the database with retry logic
  * - Starts the HTTP server
  * - Initialises background jobs and integrations (if enabled)
  */
 
+// Validate required environment variables before starting
+const envValidation = config.validate();
+if (!envValidation.valid) {
+  console.error('❌ Environment validation failed:');
+  envValidation.errors.forEach(err => console.error(`   - ${err}`));
+  console.error('\nPlease ensure all required environment variables are set correctly.');
+  process.exit(1);
+}
+
+async function connectWithRetry(maxRetries = 3, delayMs = 2000) {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await prisma.$connect();
+      console.log('✓ Connected to database');
+      return true;
+    } catch (error) {
+      lastError = error;
+      console.warn(`⚠ Database connection attempt ${attempt}/${maxRetries} failed:`, error.message);
+      
+      if (attempt < maxRetries) {
+        console.log(`↻ Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
 async function main() {
   try {
-    // Connect to database
-    await prisma.$connect();
-    console.log('✓ Connected to database');
+    // Connect to database with retry logic
+    await connectWithRetry();
 
     // Start HTTP server
     const PORT = config.PORT || 3000;
@@ -49,10 +80,15 @@ async function main() {
 
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    });
 
   } catch (error) {
     console.error('✗ Failed to start server:', error);
-    await prisma.$disconnect();
+    await prisma.$disconnect().catch(() => {});
     process.exit(1);
   }
 }
