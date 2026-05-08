@@ -1,5 +1,20 @@
 require('dotenv').config();
 
+// Required environment variables with validation
+const requiredEnvVars = [
+  'DATABASE_URL',
+  'JWT_ACCESS_SECRET',
+  'JWT_REFRESH_SECRET',
+];
+
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error(`❌ Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.error('Please check your .env file or environment configuration.');
+  // Don't throw during require to allow graceful handling, but log the error
+}
+
 module.exports = {
   // Server
   PORT: process.env.PORT || 3000,
@@ -39,4 +54,29 @@ module.exports = {
   // File Upload
   UPLOAD_PATH: process.env.UPLOAD_PATH || './uploads',
   MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10), // 10MB default
+
+  /**
+   * Validate that all required environment variables are set
+   * @returns {{ valid: boolean, errors: string[] }}
+   */
+  validate() {
+    const errors = [];
+
+    if (!this.DATABASE_URL) {
+      errors.push('DATABASE_URL environment variable is required');
+    }
+
+    if (!this.JWT_ACCESS_SECRET || this.JWT_ACCESS_SECRET === 'your-access-secret-key') {
+      errors.push('JWT_ACCESS_SECRET must be set to a secure value');
+    }
+
+    if (!this.JWT_REFRESH_SECRET || this.JWT_REFRESH_SECRET === 'your-refresh-secret-key') {
+      errors.push('JWT_REFRESH_SECRET must be set to a secure value');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  },
 };
