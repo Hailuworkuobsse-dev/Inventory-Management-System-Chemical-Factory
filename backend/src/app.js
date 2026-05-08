@@ -37,24 +37,31 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
+// API Routes - All module routes organized by feature
 app.use('/api/v1/auth', authRoutes);
-
-// Mount other module routes here (to be implemented)
-// app.use('/api/v1/stock', require('./modules/inventory/inventory.routes'));
-// app.use('/api/v1/batches', require('./modules/quality/quality.routes'));
-// app.use('/api/v1/purchase-orders', require('./modules/procurement/procurement.routes'));
-// app.use('/api/v1/sales-orders', require('./modules/sales/sales.routes'));
-// app.use('/api/v1/production', require('./modules/production/production.routes'));
-// app.use('/api/v1/users', require('./modules/users/users.routes'));
-// app.use('/api/v1/reporting', require('./modules/reporting/reporting.routes'));
-// app.use('/api/v1/alerts', require('./modules/alerts/alerts.routes'));
-// app.use('/api/v1/compliance', require('./modules/compliance/compliance.routes'));
-// app.use('/api/v1/iot', require('./modules/iot/iot.routes'));
+app.use('/api/v1/users', require('./modules/users/users.routes'));
+app.use('/api/v1/inventory', require('./modules/inventory/inventory.routes'));
+app.use('/api/v1/batches', require('./modules/quality/quality.routes'));
+app.use('/api/v1/purchase-orders', require('./modules/procurement/procurement.routes'));
+app.use('/api/v1/sales-orders', require('./modules/sales/sales.routes'));
+app.use('/api/v1/production', require('./modules/production/production.routes'));
+app.use('/api/v1/reporting', require('./modules/reporting/reporting.routes'));
+app.use('/api/v1/alerts', require('./modules/alerts/alerts.routes'));
+app.use('/api/v1/compliance', require('./modules/compliance/compliance.routes'));
+app.use('/api/v1/iot', require('./modules/iot/iot.routes'));
 
 // Handle 404 for undefined routes
 app.use((req, res, next) => {
   next(AppError.notFound(`Route ${req.method} ${req.originalUrl} not found`));
+});
+
+// Async error handler middleware - catches unhandled async errors
+app.use((err, req, res, next) => {
+  // Ensure all async errors are caught and passed to the error handler
+  if (!err.statusCode) {
+    err.statusCode = 500;
+  }
+  next(err);
 });
 
 // Global error handler
