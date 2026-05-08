@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Layouts
 import AppLayout from './layouts/AppLayout';
@@ -8,78 +8,77 @@ import AuthLayout from './layouts/AuthLayout';
 import EmptyLayout from './layouts/EmptyLayout';
 
 // Auth Pages
-import LoginPage from './features/auth/pages/LoginPage';
-import UnauthorizedPage from './features/auth/pages/UnauthorizedPage';
+import LoginPage from '../features/auth/pages/LoginPage';
+import UnauthorizedPage from '../features/auth/pages/UnauthorizedPage';
 
 // Dashboard
-import DashboardPage from './features/dashboard/pages/DashboardPage';
+import DashboardPage from '../features/dashboard/pages/DashboardPage';
 
 // Inventory Pages
-import StockListPage from './features/inventory/pages/StockListPage';
-import StockDetailPage from './features/inventory/pages/StockDetailPage';
-import ReceiptListPage from './features/inventory/pages/ReceiptListPage';
-import ReceiptCreatePage from './features/inventory/pages/ReceiptCreatePage';
-import TransferPage from './features/inventory/pages/TransferPage';
-import AdjustmentPage from './features/inventory/pages/AdjustmentPage';
+import StockListPage from '../features/inventory/pages/StockListPage';
+import StockDetailPage from '../features/inventory/pages/StockDetailPage';
+import ReceiptListPage from '../features/inventory/pages/ReceiptListPage';
+import ReceiptCreatePage from '../features/inventory/pages/ReceiptCreatePage';
+import TransferPage from '../features/inventory/pages/TransferPage';
+import AdjustmentPage from '../features/inventory/pages/AdjustmentPage';
 
 // Quality Pages
-import BatchListPage from './features/quality/pages/BatchListPage';
-import BatchDetailPage from './features/quality/pages/BatchDetailPage';
-import LabTestPage from './features/quality/pages/LabTestPage';
-import RecallPage from './features/quality/pages/RecallPage';
-import EudrPage from './features/quality/pages/EudrPage';
+import BatchListPage from '../features/quality/pages/BatchListPage';
+import BatchDetailPage from '../features/quality/pages/BatchDetailPage';
+import LabTestPage from '../features/quality/pages/LabTestPage';
+import RecallPage from '../features/quality/pages/RecallPage';
+import EudrPage from '../features/quality/pages/EudrPage';
 
 // Procurement Pages
-import SupplierListPage from './features/procurement/pages/SupplierListPage';
-import SupplierDetailPage from './features/procurement/pages/SupplierDetailPage';
-import PurchaseOrderListPage from './features/procurement/pages/PurchaseOrderListPage';
-import PurchaseOrderCreatePage from './features/procurement/pages/PurchaseOrderCreatePage';
-import ForexPage from './features/procurement/pages/ForexPage';
+import SupplierListPage from '../features/procurement/pages/SupplierListPage';
+import SupplierDetailPage from '../features/procurement/pages/SupplierDetailPage';
+import PurchaseOrderListPage from '../features/procurement/pages/PurchaseOrderListPage';
+import PurchaseOrderCreatePage from '../features/procurement/pages/PurchaseOrderCreatePage';
+import ForexPage from '../features/procurement/pages/ForexPage';
 
 // Sales Pages
-import OrderListPage from './features/sales/pages/OrderListPage';
-import OrderCreatePage from './features/sales/pages/OrderCreatePage';
-import OrderDetailPage from './features/sales/pages/OrderDetailPage';
-import ReturnListPage from './features/sales/pages/ReturnListPage';
-import CustomerPortalPage from './features/sales/pages/CustomerPortalPage';
+import OrderListPage from '../features/sales/pages/OrderListPage';
+import OrderCreatePage from '../features/sales/pages/OrderCreatePage';
+import OrderDetailPage from '../features/sales/pages/OrderDetailPage';
+import ReturnListPage from '../features/sales/pages/ReturnListPage';
+import CustomerPortalPage from '../features/sales/pages/CustomerPortalPage';
 
 // Production Pages
-import BomListPage from './features/production/pages/BomListPage';
-import BomCreatePage from './features/production/pages/BomCreatePage';
-import WorkOrderListPage from './features/production/pages/WorkOrderListPage';
-import WorkOrderDetailPage from './features/production/pages/WorkOrderDetailPage';
+import BomListPage from '../features/production/pages/BomListPage';
+import BomCreatePage from '../features/production/pages/BomCreatePage';
+import WorkOrderListPage from '../features/production/pages/WorkOrderListPage';
+import WorkOrderDetailPage from '../features/production/pages/WorkOrderDetailPage';
 
 // Reports Pages
-import InventoryTurnoverPage from './features/reports/pages/InventoryTurnoverPage';
-import AbcAnalysisPage from './features/reports/pages/AbcAnalysisPage';
-import SlowMoversPage from './features/reports/pages/SlowMoversPage';
-import ExpiryRiskPage from './features/reports/pages/ExpiryRiskPage';
-import StockOutRiskPage from './features/reports/pages/StockOutRiskPage';
-import DemandForecastPage from './features/reports/pages/DemandForecastPage';
+import InventoryTurnoverPage from '../features/reports/pages/InventoryTurnoverPage';
+import AbcAnalysisPage from '../features/reports/pages/AbcAnalysisPage';
+import SlowMoversPage from '../features/reports/pages/SlowMoversPage';
+import ExpiryRiskPage from '../features/reports/pages/ExpiryRiskPage';
+import StockOutRiskPage from '../features/reports/pages/StockOutRiskPage';
+import DemandForecastPage from '../features/reports/pages/DemandForecastPage';
 
 // Compliance Pages
-import ErisExportPage from './features/compliance/pages/ErisExportPage';
-import TaxExportPage from './features/compliance/pages/TaxExportPage';
-import AuditReportPage from './features/compliance/pages/AuditReportPage';
+import ErisExportPage from '../features/compliance/pages/ErisExportPage';
+import TaxExportPage from '../features/compliance/pages/TaxExportPage';
+import AuditReportPage from '../features/compliance/pages/AuditReportPage';
 
 // IoT Pages
-import IotDashboardPage from './features/iot/pages/IotDashboardPage';
+import IotDashboardPage from '../features/iot/pages/IotDashboardPage';
 
 // Admin Pages
-import UserManagementPage from './features/admin/pages/UserManagementPage';
-import RoleManagementPage from './features/admin/pages/RoleManagementPage';
-import SystemSettingsPage from './features/admin/pages/SystemSettingsPage';
+import UserManagementPage from '../features/admin/pages/UserManagementPage';
+import RoleManagementPage from '../features/admin/pages/RoleManagementPage';
+import SystemSettingsPage from '../features/admin/pages/SystemSettingsPage';
 
 // Route Guards
-import ProtectedRoute from './routes/ProtectedRoute';
-import RoleGuard from './routes/RoleGuard';
+import ProtectedRoute from './ProtectedRoute';
+import RoleGuard from './RoleGuard';
 
 const AppRoutes = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/login" element={
           <AuthLayout>
             <LoginPage />
           </AuthLayout>
@@ -334,7 +333,6 @@ const AppRoutes = () => {
         {/* Catch all - redirect to dashboard */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-    </BrowserRouter>
   );
 };
 
