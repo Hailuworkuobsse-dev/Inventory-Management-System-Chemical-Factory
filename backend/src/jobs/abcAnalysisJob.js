@@ -1,141 +1,113 @@
-const prisma = require('../../utils/prisma');
+const prisma = require('../utils/prisma');
 
 /**
- * ABC Analysis Job
- * Recalculates ABC classification based on consumption value (FR-052)
- * Runs weekly on Monday at 02:00
+ * Recalculate ABC classification based on consumption value (FR-052)
+ * This job runs weekly on Sunday at 02:00
+ * 
+ * ABC Analysis:
+ * - Class A: Top 80% of total consumption value
+ * - Class B: Next 15% of total consumption value
+ * - Class C: Bottom 5% of total consumption value
  */
-class ABCAnalysisJob {
-  /**
-   * Run the ABC analysis job
-   */
-  async run() {
-    console.log('Running ABC analysis...');
+const runABCAnalysisJob = async () => {
+  try {
+    // Get all products with their consumption in the last 90 days
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
-    const now = new Date();
-    
-    // Calculate date range for last 90 days of consumption
-    const ninetyDaysAgo = new Date(now);
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-    // Get all active products
-    const products = await prisma.product.findMany({
-      where: { isActive: true },
+    const movements = await prisma.stockLedger.findMany({
+      where: {
+        movementType: 'ISSUE',
+        timestamp: { gte: ninetyDaysAgo }
+      },
       include: {
         stock: {
-          where: { quantity: { gt: 0 } },
-          select: {
-            quantity: true,
-            unitCostETB: true,
-          },
-        },
-      },
+          include: {
+            batch: {
+              include: {
+                product: true
+              }
+            }
+          }
+        }
+      }
     });
 
-    // Calculate consumption value for each product (based on stock movements)
-    const productValues = [];
-
-    for (const product of products) {
-      // Get total consumption from stock ledger in last 90 days
-      const movements = await prisma.stockLedger.findMany({
-        where: {
-          productId: product.id,
-          movementType: 'OUT',
-          timestamp: { gte: ninetyDaysAgo },
-        },
-        select: {
-          quantity: true,
-          unitCostETB: true,
-        },
-      });
-
-      // Calculate total consumption value
-      const totalConsumptionValue = movements.reduce(
-        (sum, m) => sum + (m.quantity * m.unitCostETB),
-        0
-      );
-
-      // If no outbound movements, use current stock value as proxy
-      const currentValue = totalConsumptionValue > 0 
-        ? totalConsumptionValue
-        : product.stock.reduce((sum, s) => sum + (s.quantity * s.unitCostETB), 0);
-
-      productValues.push({
-        productId: product.id,
-        sku: product.sku,
-        name: product.name,
-        consumptionValue: currentValue,
-      });
+    if (movements.length === 0) {
+      console.log('No stock movements found for ABC analysis');
+      return { success: true, message: 'No stock movements found', data: [] };
     }
 
-    // Sort by consumption value (descending)
-    productValues.sort((a, b) => b.consumptionValue - a.consumptionValue);
+    // Calculate consumption value per product
+    const productConsumption = movements.reduce((acc, m) => {
+      const sku = m.stock.batch.product.sku;
+      if (!acc[sku]) {
+        acc[sku] = {
+          productId: m.stock.batch.productId,
+          sku,
+          productName: m.stock.batch.product.brandName || m.stock.batch.product.inn,
+          totalQuantity: 0,
+          totalValue: 0
+        };
+      }
+      acc[sku].totalQuantity += Math.abs(parseFloat(m.quantityChange));
+      acc[sku].totalValue += Math.abs(parseFloat(m.quantityChange)) * parseFloat(m.stock.costPrice);
+      return acc;
+    }, {});
 
-    // Calculate total value
-    const totalValue = productValues.reduce((sum, p) => sum + p.consumptionValue, 0);
+    // Sort by value descending
+    const sorted = Object.values(productConsumption).sort((a, b) => b.totalValue - a.totalValue);
 
-    // Classify into A, B, C categories
-    // A: Top 80% of value
-    // B: Next 15% of value
-    // C: Remaining 5% of value
-    let cumulativeValue = 0;
-    const classifications = { A: [], B: [], C: [] };
+    // Calculate cumulative percentage and assign ABC class
+    const totalValue = sorted.reduce((sum, p) => sum + p.totalValue, 0);
+    let cumulative = 0;
 
-    for (const product of productValues) {
-      cumulativeValue += product.consumptionValue;
-      const cumulativePercent = (cumulativeValue / totalValue) * 100;
+    for (const product of sorted) {
+      cumulative += product.totalValue;
+      const percentage = (cumulative / totalValue) * 100;
 
-      if (cumulativePercent <= 80) {
-        classifications.A.push(product.productId);
-      } else if (cumulativePercent <= 95) {
-        classifications.B.push(product.productId);
+      if (percentage <= 80) {
+        product.abcClass = 'A'; // Top 80% of value
+      } else if (percentage <= 95) {
+        product.abcClass = 'B'; // Next 15%
       } else {
-        classifications.C.push(product.productId);
+        product.abcClass = 'C'; // Bottom 5%
       }
     }
 
-    // Update product classifications in database
-    let updateCount = 0;
+    const counts = {
+      A: sorted.filter(p => p.abcClass === 'A').length,
+      B: sorted.filter(p => p.abcClass === 'B').length,
+      C: sorted.filter(p => p.abcClass === 'C').length
+    };
 
-    for (const productId of classifications.A) {
-      await prisma.product.update({
-        where: { id: productId },
-        data: { abcClassification: 'A' },
-      });
-      updateCount++;
-    }
+    console.log(`ABC Analysis complete: A=${counts.A}, B=${counts.B}, C=${counts.C}`);
 
-    for (const productId of classifications.B) {
-      await prisma.product.update({
-        where: { id: productId },
-        data: { abcClassification: 'B' },
-      });
-      updateCount++;
-    }
+    // Update products with their ABC classification
+    const updatePromises = sorted.map(product => 
+      prisma.product.update({
+        where: { id: product.productId },
+        data: { abcClass: product.abcClass }
+      }).catch(err => {
+        console.error(`Failed to update product ${product.productId}:`, err.message);
+      })
+    );
 
-    for (const productId of classifications.C) {
-      await prisma.product.update({
-        where: { id: productId },
-        data: { abcClassification: 'C' },
-      });
-      updateCount++;
-    }
-
-    console.log(`ABC analysis completed. Updated ${updateCount} products:`);
-    console.log(`  Category A: ${classifications.A.length} products`);
-    console.log(`  Category B: ${classifications.B.length} products`);
-    console.log(`  Category C: ${classifications.C.length} products`);
+    await Promise.all(updatePromises);
 
     return {
       success: true,
-      updated: updateCount,
-      summary: {
-        A: classifications.A.length,
-        B: classifications.B.length,
-        C: classifications.C.length,
-      },
+      message: 'ABC analysis completed and updated',
+      counts,
+      totalValue,
+      data: sorted
     };
-  }
-}
 
-module.exports = new ABCAnalysisJob();
+  } catch (error) {
+    console.error('ABC analysis job failed:', error);
+    throw error;
+  }
+};
+
+module.exports = {
+  runABCAnalysisJob
+};

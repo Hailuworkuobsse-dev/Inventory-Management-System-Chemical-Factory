@@ -1,16 +1,11 @@
 /**
- * Pagination Utility
- * Standardises pagination parameters from query strings
- */
-
-/**
- * Parse and validate pagination parameters
- * @param {Object} query - Express query object
- * @param {number} defaultLimit - Default limit value
+ * Standardise pagination parameters from query strings
+ * @param {Object} query - Express request query object
+ * @param {number} defaultLimit - Default limit if not provided
  * @param {number} maxLimit - Maximum allowed limit
- * @returns {Object} - Parsed pagination parameters
+ * @returns {Object} Pagination object with page, limit, skip, and take
  */
-const parsePagination = (query, defaultLimit = 20, maxLimit = 100) => {
+const getPagination = (query, defaultLimit = 20, maxLimit = 100) => {
   const page = Math.max(1, parseInt(query.page) || 1);
   const limit = Math.min(maxLimit, Math.max(1, parseInt(query.limit) || defaultLimit));
   const skip = (page - 1) * limit;
@@ -19,46 +14,29 @@ const parsePagination = (query, defaultLimit = 20, maxLimit = 100) => {
     page,
     limit,
     skip,
+    take: limit
   };
 };
 
 /**
- * Build pagination response metadata
- * @param {number} total - Total number of records
- * @param {number} page - Current page
- * @param {number} limit - Items per page
- * @returns {Object} - Pagination metadata
+ * Format paginated response
+ * @param {Array} items - Array of items
+ * @param {number} total - Total count of items
+ * @param {Object} pagination - Pagination object
+ * @returns {Object} Formatted response with items and meta
  */
-const buildPaginationMeta = (total, page, limit) => {
-  const totalPages = Math.ceil(total / limit);
-  
+const formatPaginatedResponse = (items, total, pagination) => {
   return {
+    items,
     total,
-    page,
-    limit,
-    totalPages,
-    hasNextPage: page < totalPages,
-    hasPrevPage: page > 1,
-  };
-};
-
-/**
- * Build paginated response
- * @param {Array} data - Array of items
- * @param {number} total - Total number of records
- * @param {number} page - Current page
- * @param {number} limit - Items per page
- * @returns {Object} - Paginated response object
- */
-const paginate = (data, total, page, limit) => {
-  return {
-    items: data,
-    ...buildPaginationMeta(total, page, limit),
+    page: pagination.page,
+    limit: pagination.limit,
+    totalPages: Math.ceil(total / pagination.limit),
+    hasMore: pagination.page * pagination.limit < total
   };
 };
 
 module.exports = {
-  parsePagination,
-  buildPaginationMeta,
-  paginate,
+  getPagination,
+  formatPaginatedResponse
 };

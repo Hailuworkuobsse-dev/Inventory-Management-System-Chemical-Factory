@@ -1,42 +1,44 @@
 const Joi = require('joi');
 
-const createUserSchema = Joi.object({
-  email: Joi.string().email().required(),
-  password: Joi.string().min(6).required(),
-  firstName: Joi.string().required(),
-  lastName: Joi.string().required(),
-  roleId: Joi.string().uuid().required(),
-  phone: Joi.string().optional(),
-  isActive: Joi.boolean().default(true)
-});
+const usersValidation = {
+  createUser: Joi.object({
+    name: Joi.string().required(),
+    email: Joi.string().email().required(),
+    password: Joi.string().min(8).required(),
+    phone: Joi.string().optional(),
+    isActive: Joi.boolean().optional(),
+    warehouseId: Joi.number().optional(),
+    roleIds: Joi.array().items(Joi.number()).optional()
+  }),
 
-const updateUserSchema = Joi.object({
-  firstName: Joi.string().optional(),
-  lastName: Joi.string().optional(),
-  phone: Joi.string().optional(),
-  roleId: Joi.string().uuid().optional(),
-  isActive: Joi.boolean().optional()
-});
+  updateUser: Joi.object({
+    name: Joi.string().optional(),
+    email: Joi.string().email().optional(),
+    password: Joi.string().min(8).optional(),
+    phone: Joi.string().optional(),
+    isActive: Joi.boolean().optional(),
+    warehouseId: Joi.number().optional()
+  }),
 
-const createRoleSchema = Joi.object({
-  name: Joi.string().required(),
-  description: Joi.string().optional(),
-  permissions: Joi.array().items(Joi.string()).optional()
-});
+  assignRole: Joi.object({
+    roleId: Joi.number().required()
+  }),
 
-const assignPermissionsSchema = Joi.object({
-  roleId: Joi.string().uuid().required(),
-  permissions: Joi.array().items(Joi.string()).required()
-});
+  removeRole: Joi.object({
+    roleId: Joi.number().required()
+  }),
 
-const getUserPermissionsSchema = Joi.object({
-  userId: Joi.string().uuid().required()
-});
+  createRole: Joi.object({
+    name: Joi.string().required(),
+    description: Joi.string().optional(),
+    permissionIds: Joi.array().items(Joi.number()).optional()
+  }),
 
-module.exports = {
-  createUserSchema,
-  updateUserSchema,
-  createRoleSchema,
-  assignPermissionsSchema,
-  getUserPermissionsSchema
+  updateRole: Joi.object({
+    name: Joi.string().optional(),
+    description: Joi.string().optional(),
+    permissionIds: Joi.array().items(Joi.number()).optional()
+  })
 };
+
+module.exports = usersValidation;

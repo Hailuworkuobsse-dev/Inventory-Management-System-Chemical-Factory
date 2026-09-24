@@ -1,35 +1,43 @@
+# ESLint configuration for AIMS Backend
+
 module.exports = {
   env: {
-    browser: true,
-    es2021: true,
     node: true,
+    commonjs: true,
+    es2022: true,
     jest: true
   },
   extends: [
     'eslint:recommended'
   ],
   parserOptions: {
-    ecmaVersion: 12,
-    sourceType: 'module'
+    ecmaVersion: 'latest',
+    requireConfigFile: false
   },
   rules: {
+    // Best Practices
     'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-    'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
-    'semi': ['error', 'always'],
-    'quotes': ['warn', 'single'],
-    'indent': ['warn', 2],
-    'no-trailing-spaces': 'warn',
-    'eol-last': 'error',
-    'comma-dangle': ['warn', 'never'],
-    'no-multiple-empty-lines': ['warn', { max: 1 }],
-    'space-before-function-paren': ['warn', 'always'],
-    'object-curly-spacing': ['warn', 'always'],
-    'array-bracket-spacing': ['warn', 'never'],
-    'prefer-const': 'warn',
-    'no-var': 'error',
+    'no-console': ['warn', { allow: ['log', 'error', 'warn'] }],
     'eqeqeq': ['error', 'always'],
-    'curly': ['warn', 'multi-line'],
-    'no-implicit-coercion': 'warn'
+    'curly': ['error', 'all'],
+    'no-var': 'error',
+    'prefer-const': 'error',
+    
+    // Code Style
+    'indent': ['error', 2],
+    'quotes': ['error', 'single'],
+    'semi': ['error', 'always'],
+    'comma-dangle': ['error', 'never'],
+    'no-trailing-spaces': 'error',
+    'eol-last': 'error',
+    
+    // Security
+    'no-eval': 'error',
+    'no-implied-eval': 'error',
+    
+    // Error Handling
+    'no-throw-literal': 'error',
+    'prefer-promise-reject-errors': 'error'
   },
   ignorePatterns: [
     'node_modules/',
@@ -37,6 +45,6 @@ module.exports = {
     'build/',
     'coverage/',
     '*.config.js',
-    'prisma/'
+    'prisma/migrations/'
   ]
 };

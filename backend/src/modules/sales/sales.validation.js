@@ -1,47 +1,43 @@
 const Joi = require('joi');
 
-const createSalesOrderSchema = Joi.object({
-  customerId: Joi.string().uuid().required(),
-  warehouseId: Joi.string().uuid().required(),
-  items: Joi.array().items(
-    Joi.object({
-      itemId: Joi.string().uuid().required(),
-      quantity: Joi.number().positive().required()
-    })
-  ).min(1).required(),
-  priority: Joi.string().valid('NORMAL', 'EXPRESS').default('NORMAL'),
-  notes: Joi.string().optional()
-});
+const salesValidation = {
+  createSalesOrder: Joi.object({
+    customerId: Joi.number().required(),
+    warehouseId: Joi.number().required(),
+    requiredDate: Joi.date().optional(),
+    items: Joi.array().items(
+      Joi.object({
+        productId: Joi.number().required(),
+        quantity: Joi.number().min(1).required(),
+        unitPrice: Joi.number().min(0).optional()
+      })
+    ).min(1).required()
+  }),
 
-const updateOrderStatusSchema = Joi.object({
-  status: Joi.string().valid('PENDING', 'CONFIRMED', 'PICKED', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED').required()
-});
+  updateSalesOrderStatus: Joi.object({
+    status: Joi.string().valid('PENDING', 'CONFIRMED', 'PICKING', 'PICKED', 'PACKING', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED').required(),
+    trackingNumber: Joi.string().optional()
+  }),
 
-const createReturnSchema = Joi.object({
-  orderId: Joi.string().uuid().required(),
-  items: Joi.array().items(
-    Joi.object({
-      itemId: Joi.string().uuid().required(),
-      quantity: Joi.number().positive().required(),
-      reason: Joi.string().required()
-    })
-  ).min(1).required(),
-  returnReason: Joi.string().required(),
-  notes: Joi.string().optional()
-});
+  createReturn: Joi.object({
+    items: Joi.array().items(
+      Joi.object({
+        productId: Joi.number().required(),
+        batchId: Joi.number().optional(),
+        quantity: Joi.number().min(1).required(),
+        reason: Joi.string().optional()
+      })
+    ).min(1).required()
+  }),
 
-const createCustomerSchema = Joi.object({
-  name: Joi.string().required(),
-  email: Joi.string().email().required(),
-  phone: Joi.string().optional(),
-  address: Joi.string().optional(),
-  taxId: Joi.string().optional(),
-  creditLimit: Joi.number().nonNegative().optional()
-});
-
-module.exports = {
-  createSalesOrderSchema,
-  updateOrderStatusSchema,
-  createReturnSchema,
-  createCustomerSchema
+  updateReturnDisposition: Joi.object({
+    items: Joi.array().items(
+      Joi.object({
+        returnItemId: Joi.number().required(),
+        disposition: Joi.string().valid('RESTOCK', 'SCRAP', 'QUARANTINE', 'RETURN_TO_VENDOR').required()
+      })
+    ).min(1).required()
+  })
 };
+
+module.exports = salesValidation;
