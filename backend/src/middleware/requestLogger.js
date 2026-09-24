@@ -1,9 +1,6 @@
 const morgan = require('morgan');
 
-/**
- * Request Logger Middleware
- * Logs every request with method, URL, response time, and status code
- */
+// Custom token for request ID (could be extended with uuid)
 const requestLogger = morgan(':method :url :status :res[content-length] - :response-time ms');
 
 module.exports = requestLogger;

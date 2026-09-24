@@ -1,246 +1,236 @@
-const prisma = require('../../utils/prisma');
-const fs = require('fs').promises;
-const path = require('path');
+const axios = require('axios');
+const config = require('../../config');
 const AppError = require('../../utils/appError');
 
 /**
- * eRIS Integration Service
- * Formats data and exports for EFDA's eRIS system (FR-002)
+ * Format and export data for EFDA's eRIS system (FR-002)
+ * @param {Object} options - Export options
+ * @param {string} [options.dateFrom] - Start date for export
+ * @param {string} [options.dateTo] - End date for export
+ * @param {string} [options.format] - Export format (CSV, XML, JSON)
+ * @returns {Promise<Object>} Export result with file URL or data
  */
-class ErisService {
-  /**
-   * Generate eRIS export file
-   * @param {Object} options - Export options
-   * @param {string} options.format - Export format (JSON, XML, CSV)
-   * @param {Date} [options.dateFrom] - Start date filter
-   * @param {Date} [options.dateTo] - End date filter
-   * @returns {Promise<Object>} - Export result with file URL
-   */
-  async generateExport(options = {}) {
-    const { format = 'JSON', dateFrom, dateTo } = options;
-    
-    // Gather all required data for eRIS
-    const data = await this.gatherErisData(dateFrom, dateTo);
-    
-    // Format according to eRIS specification
-    let formattedData;
-    let extension;
-    
-    switch (format.toUpperCase()) {
-      case 'XML':
-        formattedData = this.formatAsXML(data);
-        extension = 'xml';
-        break;
-      case 'CSV':
-        formattedData = this.formatAsCSV(data);
-        extension = 'csv';
-        break;
-      default:
-        formattedData = JSON.stringify(data, null, 2);
-        extension = 'json';
-    }
-    
-    // Save to exports directory
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `eris_export_${timestamp}.${extension}`;
-    const filepath = path.join(process.cwd(), 'exports', filename);
-    
-    // Ensure exports directory exists
-    try {
-      await fs.mkdir(path.join(process.cwd(), 'exports'), { recursive: true });
-    } catch (error) {
-      // Directory might already exist
-    }
-    
-    await fs.writeFile(filepath, formattedData);
-    
-    // Record export in database
-    const exportRecord = await prisma.regulatoryExport.create({
-      data: {
-        exportType: 'ERIS',
-        format: format.toUpperCase(),
-        filePath: `/exports/${filename}`,
-        status: 'COMPLETED',
-        dateRange: {
-          start: dateFrom || null,
-          end: dateTo || null,
-        },
-      },
-    });
-    
-    return {
-      id: exportRecord.id,
-      filename,
-      url: `/exports/${filename}`,
-      generatedAt: new Date(),
-    };
-  }
+const exportToERIS = async ({ dateFrom, dateTo, format = 'CSV' }) => {
+  const prisma = require('../../utils/prisma');
   
-  /**
-   * Gather all data required for eRIS reporting
-   * @param {Date} dateFrom - Start date
-   * @param {Date} dateTo - End date
-   * @returns {Promise<Object>} - Aggregated data
-   */
-  async gatherErisData(dateFrom, dateTo) {
-    const now = new Date();
-    const from = dateFrom || new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const to = dateTo || now;
-    
-    // Get all stock movements
-    const stockMovements = await prisma.stockLedger.findMany({
-      where: {
-        timestamp: { gte: from, lte: to },
-      },
-      include: {
-        product: {
-          select: {
-            id: true,
-            sku: true,
-            name: true,
-            inn: true,
-            strength: true,
-            dosageForm: true,
-            manufacturerName: true,
-          },
+  try {
+    // Fetch all required data for eRIS
+    const [batches, receipts, stockMovements] = await Promise.all([
+      prisma.batch.findMany({
+        where: {
+          createdAt: {
+            gte: dateFrom ? new Date(dateFrom) : undefined,
+            lte: dateTo ? new Date(dateTo) : undefined
+          }
         },
-        batch: {
-          select: {
-            batchNumber: true,
-            expiryDate: true,
-            importPermitNo: true,
-          },
+        include: {
+          product: true,
+          certificates: true,
+          labTests: true
+        }
+      }),
+      prisma.receipt.findMany({
+        where: {
+          receivedDate: {
+            gte: dateFrom ? new Date(dateFrom) : undefined,
+            lte: dateTo ? new Date(dateTo) : undefined
+          }
         },
-        warehouse: {
-          select: {
-            name: true,
-            licenseNo: true,
+        include: {
+          items: {
+            include: {
+              product: true
+            }
           },
+          purchaseOrder: true
+        }
+      }),
+      prisma.stockLedger.findMany({
+        where: {
+          timestamp: {
+            gte: dateFrom ? new Date(dateFrom) : undefined,
+            lte: dateTo ? new Date(dateTo) : undefined
+          }
         },
-      },
-    });
-    
-    // Get all receipts
-    const receipts = await prisma.goodsReceipt.findMany({
-      where: {
-        receivedDate: { gte: from, lte: to },
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-            batch: true,
-          },
+        include: {
+          stock: {
+            include: {
+              batch: {
+                include: {
+                  product: true
+                }
+              }
+            }
+          }
         },
-        warehouse: true,
-      },
-    });
-    
-    // Get all sales/dispatches
-    const sales = await prisma.salesOrder.findMany({
-      where: {
-        createdAt: { gte: from, lte: to },
-        status: { in: ['SHIPPED', 'DELIVERED'] },
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-            batch: true,
-          },
-        },
-        customer: true,
-      },
-    });
-    
-    return {
-      exportDate: now.toISOString(),
-      reportingPeriod: {
-        from: from.toISOString(),
-        to: to.toISOString(),
-      },
-      summary: {
-        totalMovements: stockMovements.length,
-        totalReceipts: receipts.length,
-        totalSales: sales.length,
-      },
-      stockMovements: stockMovements.map(m => ({
-        movementId: m.id,
-        type: m.movementType,
-        productId: m.product.sku,
-        productName: m.product.name,
-        batchNumber: m.batch?.batchNumber,
-        quantity: m.quantity,
-        unitCost: m.unitCostETB,
-        warehouse: m.warehouse.name,
-        timestamp: m.timestamp.toISOString(),
-        reference: m.reference,
+        take: 10000
+      })
+    ]);
+
+    // Format data according to eRIS specifications
+    const eRISData = {
+      exportDate: new Date().toISOString(),
+      dateRange: { from: dateFrom, to: dateTo },
+      batches: batches.map(b => ({
+        batchNumber: b.batchNumber,
+        productName: b.product.brandName || b.product.inn,
+        sku: b.product.sku,
+        manufactureDate: b.manufactureDate.toISOString(),
+        expiryDate: b.expiryDate.toISOString(),
+        status: b.status,
+        certificates: b.certificates.map(c => ({
+          type: c.type,
+          number: c.number,
+          issueDate: c.issueDate?.toISOString(),
+          expiryDate: c.expiryDate?.toISOString()
+        })),
+        labTests: b.labTests.map(t => ({
+          testType: t.testType,
+          status: t.status,
+          resultValue: t.resultValue,
+          performedDate: t.performedDate?.toISOString()
+        }))
       })),
       receipts: receipts.map(r => ({
-        receiptId: r.id,
         receiptNumber: r.receiptNumber,
-        warehouse: r.warehouse.name,
         receivedDate: r.receivedDate.toISOString(),
+        importPermit: r.iImportPermit,
+        status: r.status,
         items: r.items.map(i => ({
+          productName: i.product.brandName || i.product.inn,
           sku: i.product.sku,
-          batchNumber: i.batch?.batchNumber,
-          quantity: i.quantityReceived,
-          unitCost: i.unitCost,
-          currency: i.currency,
-        })),
+          batchNumber: i.batchNumber,
+          quantityReceived: i.quantityReceived.toString(),
+          quantityAccepted: i.quantityAccepted?.toString(),
+          unitCost: i.unitCost.toString(),
+          currency: i.currency
+        }))
       })),
-      sales: sales.map(s => ({
-        orderId: s.id,
-        orderNumber: s.orderNumber,
-        customer: s.customer?.name,
-        orderDate: s.createdAt.toISOString(),
-        items: s.items.map(i => ({
-          sku: i.product.sku,
-          batchNumber: i.batch?.batchNumber,
-          quantity: i.quantity,
-        })),
-      })),
+      stockMovements: stockMovements.map(m => ({
+        timestamp: m.timestamp.toISOString(),
+        movementType: m.movementType,
+        batchNumber: m.stock.batch.batchNumber,
+        productName: m.stock.batch.product.brandName || m.stock.batch.product.inn,
+        quantityChange: m.quantityChange.toString(),
+        reason: m.reason
+      }))
     };
-  }
-  
-  /**
-   * Format data as XML
-   * @param {Object} data - Data to format
-   * @returns {string} - XML string
-   */
-  formatAsXML(data) {
-    // Simplified XML formatting
-    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-    xml += '<eRISExport>\n';
-    xml += `  <exportDate>${data.exportDate}</exportDate>\n`;
-    xml += `  <reportingPeriod>\n`;
-    xml += `    <from>${data.reportingPeriod.from}</from>\n`;
-    xml += `    <to>${data.reportingPeriod.to}</to>\n`;
-    xml += `  </reportingPeriod>\n`;
-    xml += `  <summary>\n`;
-    xml += `    <totalMovements>${data.summary.totalMovements}</totalMovements>\n`;
-    xml += `    <totalReceipts>${data.summary.totalReceipts}</totalReceipts>\n`;
-    xml += `    <totalSales>${data.summary.totalSales}</totalSales>\n`;
-    xml += `  </summary>\n`;
-    xml += '</eRISExport>';
-    
-    return xml;
-  }
-  
-  /**
-   * Format data as CSV
-   * @param {Object} data - Data to format
-   * @returns {string} - CSV string
-   */
-  formatAsCSV(data) {
-    let csv = 'MovementID,Type,ProductSKU,ProductName,BatchNumber,Quantity,UnitCost,Warehouse,Timestamp\n';
-    
-    data.stockMovements.forEach(m => {
-      csv += `${m.movementId},${m.type},${m.productId},"${m.productName}",${m.batchNumber},${m.quantity},${m.unitCost},"${m.warehouse}",${m.timestamp}\n`;
-    });
-    
-    return csv;
-  }
-}
 
-module.exports = new ErisService();
+    // If eRIS API is configured, send data
+    if (config.ERIS_API_URL && config.ERIS_API_KEY) {
+      try {
+        const response = await axios.post(
+          `${config.ERIS_API_URL}/api/v1/submission`,
+          eRISData,
+          {
+            headers: {
+              'Authorization': `Bearer ${config.ERIS_API_KEY}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        return {
+          success: true,
+          submissionId: response.data?.submissionId,
+          timestamp: new Date().toISOString(),
+          recordCount: {
+            batches: batches.length,
+            receipts: receipts.length,
+            movements: stockMovements.length
+          }
+        };
+      } catch (apiError) {
+        console.error('eRIS API submission failed:', apiError.message);
+        // Continue to return formatted data even if API fails
+      }
+    }
+
+    // Return formatted data for manual export
+    return {
+      success: true,
+      data: eRISData,
+      format,
+      timestamp: new Date().toISOString(),
+      recordCount: {
+        batches: batches.length,
+        receipts: receipts.length,
+        movements: stockMovements.length
+      },
+      message: 'Data formatted for eRIS export. Download or submit manually.'
+    };
+  } catch (error) {
+    console.error('Failed to export to eRIS:', error);
+    throw new AppError('Failed to generate eRIS export', 500, 'ERIS_EXPORT_FAILED');
+  }
+};
+
+/**
+ * Generate tax valuation report for Ministry of Revenue
+ * @param {Object} options - Report options
+ * @param {string} options.periodStart - Start of reporting period
+ * @param {string} options.periodEnd - End of reporting period
+ * @returns {Promise<Object>} Tax report data
+ */
+const generateTaxReport = async ({ periodStart, periodEnd }) => {
+  const prisma = require('../../utils/prisma');
+
+  try {
+    // Get all stock movements in the period
+    const movements = await prisma.stockLedger.findMany({
+      where: {
+        timestamp: {
+          gte: new Date(periodStart),
+          lte: new Date(periodEnd)
+        }
+      },
+      include: {
+        stock: {
+          include: {
+            batch: {
+              include: {
+                product: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Calculate taxable values
+    const taxData = movements.reduce((acc, m) => {
+      const key = `${m.stock.batch.product.sku}-${m.movementType}`;
+      if (!acc[key]) {
+        acc[key] = {
+          sku: m.stock.batch.product.sku,
+          productName: m.stock.batch.product.brandName || m.stock.batch.product.inn,
+          movementType: m.movementType,
+          totalQuantity: 0,
+          totalValue: 0
+        };
+      }
+      acc[key].totalQuantity += parseFloat(m.quantityChange);
+      acc[key].totalValue += parseFloat(m.quantityChange) * parseFloat(m.stock.costPrice);
+      return acc;
+    }, {});
+
+    return {
+      success: true,
+      period: { start: periodStart, end: periodEnd },
+      generatedAt: new Date().toISOString(),
+      data: Object.values(taxData),
+      summary: {
+        totalMovements: movements.length,
+        uniqueProducts: Object.keys(taxData).length
+      }
+    };
+  } catch (error) {
+    console.error('Failed to generate tax report:', error);
+    throw new AppError('Failed to generate tax valuation report', 500, 'TAX_REPORT_FAILED');
+  }
+};
+
+module.exports = {
+  exportToERIS,
+  generateTaxReport
+};

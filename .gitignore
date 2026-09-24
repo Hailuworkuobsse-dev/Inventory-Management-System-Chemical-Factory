@@ -1,2 +1,39 @@
-# Dependency directories
+```
+# Dependencies
 node_modules/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build outputs
+dist/
+build/
+coverage/
+htmlcov/
+*.egg-info/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Testing
+.nyc_output/
+.coverage
+coverage.xml
+```

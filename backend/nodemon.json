@@ -5,14 +5,12 @@
   "ext": "js,json",
   "ignore": [
     "node_modules",
-    "*.test.js",
-    "*.spec.js",
-    ".git"
+    "prisma/migrations"
   ],
-  "exec": "node src/server.js",
+  "execMap": {
+    "js": "node"
+  },
   "env": {
     "NODE_ENV": "development"
-  },
-  "delay": 1000,
-  "verbose": true
+  }
 }

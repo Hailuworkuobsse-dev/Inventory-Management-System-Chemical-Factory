@@ -1,41 +1,42 @@
-# AIMS Backend Dockerfile
-FROM node:18-alpine
+# Multi-stage Dockerfile for AIMS Backend
 
-# Install dependencies for node-gyp (if needed for native modules)
-RUN apk add --no-cache python3 make g++
-
-# Set working directory
+# Stage 1: Dependencies
+FROM node:18-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY prisma ./prisma/
-
-# Install dependencies
+COPY package.json package-lock.json* ./
 RUN npm ci --only=production
 
-# Copy Prisma schema and generate client
+# Stage 2: Builder
+FROM node:18-alpine AS builder
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+COPY prisma ./prisma/
 RUN npx prisma generate
 
-# Copy application source
-COPY src ./src
+COPY . .
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# Stage 3: Runner
+FROM node:18-alpine AS runner
+WORKDIR /app
 
-# Change ownership of app files
-RUN chown -R nodejs:nodejs /app
+ENV NODE_ENV=production
 
-# Switch to non-root user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nodejs
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/package.json ./
+
 USER nodejs
 
-# Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-# Start application
 CMD ["node", "src/server.js"]

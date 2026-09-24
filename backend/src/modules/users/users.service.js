@@ -1,198 +1,244 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../../utils/prisma');
+const AppError = require('../../utils/appError');
 const bcrypt = require('bcryptjs');
-const { AppError } = require('../../utils/customErrors');
-const auditService = require('../../services/audit.service');
 
-const prisma = new PrismaClient();
+const usersService = {
+  async listUsers(query) {
+    const { role, isActive, search, page = '1', limit = '20' } = query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
 
-/**
- * Create a user
- */
-async function createUser(data, userId) {
-  const { email, password, firstName, lastName, roleId, phone, isActive } = data;
-
-  // Check if user exists
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) {
-    throw new AppError('User with this email already exists', 409);
-  }
-
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, 12);
-
-  const user = await prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      firstName,
-      lastName,
-      phone,
-      isActive,
-      role: {
-        connect: { id: roleId }
-      }
-    },
-    include: { role: true }
-  });
-
-  await auditService.logAction(prisma, {
-    userId,
-    action: 'USER_CREATED',
-    entityType: 'User',
-    entityId: user.id,
-    details: { email, roleId }
-  });
-
-  // Return without password
-  const { password: _, ...userWithoutPassword } = user;
-  return userWithoutPassword;
-}
-
-/**
- * Update user
- */
-async function updateUser(userId, data, actorId) {
-  const { firstName, lastName, phone, roleId, isActive } = data;
-
-  const updateData = {};
-  if (firstName) updateData.firstName = firstName;
-  if (lastName) updateData.lastName = lastName;
-  if (phone !== undefined) updateData.phone = phone;
-  if (roleId) updateData.roleId = roleId;
-  if (isActive !== undefined) updateData.isActive = isActive;
-
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: updateData,
-    include: { role: true }
-  });
-
-  await auditService.logAction(prisma, {
-    userId: actorId,
-    action: 'USER_UPDATED',
-    entityType: 'User',
-    entityId: userId,
-    details: { updates: Object.keys(updateData) }
-  });
-
-  const { password: _, ...userWithoutPassword } = user;
-  return userWithoutPassword;
-}
-
-/**
- * Create a role
- */
-async function createRole(data, userId) {
-  const { name, description, permissions } = data;
-
-  const role = await prisma.role.create({
-    data: {
-      name,
-      description,
-      permissions: permissions || []
+    const where = {};
+    if (isActive !== undefined) {
+      where.isActive = isActive === 'true';
     }
-  });
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ];
+    }
 
-  await auditService.logAction(prisma, {
-    userId,
-    action: 'ROLE_CREATED',
-    entityType: 'Role',
-    entityId: role.id,
-    details: { name }
-  });
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          roles: {
+            include: {
+              role: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.user.count({ where })
+    ]);
 
-  return role;
-}
+    return {
+      items: users,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    };
+  },
 
-/**
- * Assign permissions to a role
- */
-async function assignPermissions(roleId, permissions, userId) {
-  const role = await prisma.role.update({
-    where: { id: roleId },
-    data: { permissions }
-  });
-
-  await auditService.logAction(prisma, {
-    userId,
-    action: 'PERMISSIONS_ASSIGNED',
-    entityType: 'Role',
-    entityId: roleId,
-    details: { permissionCount: permissions.length }
-  });
-
-  return role;
-}
-
-/**
- * Get user permissions
- */
-async function getUserPermissions(userId) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { role: true }
-  });
-
-  if (!user) {
-    throw new AppError('User not found', 404);
-  }
-
-  return {
-    userId: user.id,
-    email: user.email,
-    roleId: user.role?.id,
-    roleName: user.role?.name,
-    permissions: user.role?.permissions || []
-  };
-}
-
-/**
- * Get all roles
- */
-async function getAllRoles() {
-  return prisma.role.findMany({
-    include: {
-      users: {
-        select: { id: true, email: true, firstName: true, lastName: true }
+  async getUser(id) {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        roles: {
+          include: {
+            role: true
+          }
+        },
+        auditLogs: {
+          take: 10,
+          orderBy: { timestamp: 'desc' }
+        }
       }
-    },
-    orderBy: { name: 'asc' }
-  });
-}
+    });
 
-/**
- * Delete a role
- */
-async function deleteRole(roleId, userId) {
-  // Check if role is assigned to any users
-  const role = await prisma.role.findUnique({
-    where: { id: roleId },
-    include: { users: true }
-  });
+    if (!user) {
+      throw new AppError('User not found', 404, 'NOT_FOUND');
+    }
 
-  if (!role) throw new AppError('Role not found', 404);
-  if (role.users.length > 0) {
-    throw new AppError('Cannot delete role assigned to users', 400);
+    // Remove password from response
+    delete user.password;
+    return user;
+  },
+
+  async createUser(data, creatorId) {
+    // Check if email already exists
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email }
+    });
+
+    if (existing) {
+      throw new AppError('Email already in use', 400, 'VALIDATION_ERROR');
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(data.password, 12);
+
+    const user = await prisma.user.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        password: hashedPassword,
+        phone: data.phone,
+        isActive: data.isActive ?? true,
+        warehouseId: data.warehouseId ? parseInt(data.warehouseId) : null,
+        roles: data.roleIds ? {
+          create: data.roleIds.map(roleId => ({
+            roleId: parseInt(roleId),
+            grantedById: creatorId
+          }))
+        } : undefined
+      },
+      include: {
+        roles: {
+          include: {
+            role: true
+          }
+        }
+      }
+    });
+
+    delete user.password;
+    return user;
+  },
+
+  async updateUser(id, data, updaterId) {
+    const updateData = { ...data };
+
+    // Handle password update separately
+    if (data.password) {
+      updateData.password = await bcrypt.hash(data.password, 12);
+    }
+
+    if (data.warehouseId) {
+      updateData.warehouseId = parseInt(data.warehouseId);
+    }
+
+    const user = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+      include: {
+        roles: {
+          include: {
+            role: true
+          }
+        }
+      }
+    });
+
+    delete user.password;
+    return user;
+  },
+
+  async deleteUser(id, deleterId) {
+    // Soft delete by setting isActive to false
+    await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { isActive: false }
+    });
+
+    return { success: true };
+  },
+
+  async assignRole(userId, roleId, granterId) {
+    await prisma.userRole.create({
+      data: {
+        userId: parseInt(userId),
+        roleId: parseInt(roleId),
+        grantedById: granterId
+      }
+    });
+
+    return this.getUser(userId);
+  },
+
+  async removeRole(userId, roleId, granterId) {
+    await prisma.userRole.deleteMany({
+      where: {
+        userId: parseInt(userId),
+        roleId: parseInt(roleId)
+      }
+    });
+
+    return this.getUser(userId);
+  },
+
+  async listRoles() {
+    const roles = await prisma.role.findMany({
+      include: {
+        permissions: true,
+        users: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    return roles;
+  },
+
+  async createRole(data, creatorId) {
+    const role = await prisma.role.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        permissions: data.permissionIds ? {
+          connect: data.permissionIds.map(id => ({ id: parseInt(id) }))
+        } : undefined
+      },
+      include: {
+        permissions: true
+      }
+    });
+
+    return role;
+  },
+
+  async updateRole(id, data, updaterId) {
+    const updateData = {};
+
+    if (data.name) updateData.name = data.name;
+    if (data.description !== undefined) updateData.description = data.description;
+
+    if (data.permissionIds) {
+      updateData.permissions = {
+        set: data.permissionIds.map(pid => ({ id: parseInt(pid) }))
+      };
+    }
+
+    const role = await prisma.role.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+      include: {
+        permissions: true
+      }
+    });
+
+    return role;
+  },
+
+  async getPermissions() {
+    const permissions = await prisma.permission.findMany({
+      orderBy: { name: 'asc' }
+    });
+    return permissions;
   }
-
-  await prisma.role.delete({ where: { id: roleId } });
-
-  await auditService.logAction(prisma, {
-    userId,
-    action: 'ROLE_DELETED',
-    entityType: 'Role',
-    entityId: roleId
-  });
-
-  return { success: true };
-}
-
-module.exports = {
-  createUser,
-  updateUser,
-  createRole,
-  assignPermissions,
-  getUserPermissions,
-  getAllRoles,
-  deleteRole
 };
+
+module.exports = usersService;

@@ -1,20 +1,5 @@
 require('dotenv').config();
 
-// Required environment variables with validation
-const requiredEnvVars = [
-  'DATABASE_URL',
-  'JWT_ACCESS_SECRET',
-  'JWT_REFRESH_SECRET',
-];
-
-const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
-
-if (missingEnvVars.length > 0) {
-  console.error(`❌ Missing required environment variables: ${missingEnvVars.join(', ')}`);
-  console.error('Please check your .env file or environment configuration.');
-  // Don't throw during require to allow graceful handling, but log the error
-}
-
 module.exports = {
   // Server
   PORT: process.env.PORT || 3000,
@@ -24,59 +9,44 @@ module.exports = {
   DATABASE_URL: process.env.DATABASE_URL,
 
   // JWT
-  JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || 'your-access-secret-key',
-  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key',
-  JWT_ACCESS_EXPIRY: process.env.JWT_ACCESS_EXPIRY || '15m',
-  JWT_REFRESH_EXPIRY: process.env.JWT_REFRESH_EXPIRY || '7d',
+  JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET,
+  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '15m',
+  JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
 
-  // CORS
-  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-
-  // MQTT (IoT)
-  MQTT_BROKER_URL: process.env.MQTT_BROKER_URL || 'mqtt://localhost:1883',
-  MQTT_ENABLED: process.env.MQTT_ENABLED === 'true',
-
-  // eRIS Integration
-  ERIS_ENDPOINT: process.env.ERIS_ENDPOINT,
-  ERIS_API_KEY: process.env.ERIS_API_KEY,
-
-  // Email (for alerts)
-  SMTP_HOST: process.env.SMTP_HOST,
-  SMTP_PORT: process.env.SMTP_PORT,
-  SMTP_USER: process.env.SMTP_USER,
-  SMTP_PASS: process.env.SMTP_PASS,
-  EMAIL_FROM: process.env.EMAIL_FROM,
-
-  // Redis (for BullMQ/caching)
+  // Redis
   REDIS_HOST: process.env.REDIS_HOST || 'localhost',
   REDIS_PORT: process.env.REDIS_PORT || 6379,
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD || '',
+
+  // MQTT
+  MQTT_BROKER_URL: process.env.MQTT_BROKER_URL || 'mqtt://localhost:1883',
+  MQTT_USERNAME: process.env.MQTT_USERNAME || '',
+  MQTT_PASSWORD: process.env.MQTT_PASSWORD || '',
+
+  // Email
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: process.env.SMTP_PORT || 587,
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
+  EMAIL_FROM: process.env.EMAIL_FROM || 'noreply@aims.et',
+
+  // eRIS Integration
+  ERIS_API_URL: process.env.ERIS_API_URL,
+  ERIS_API_KEY: process.env.ERIS_API_KEY,
+
+  // ERP Integration
+  ERP_API_URL: process.env.ERP_API_URL,
+  ERP_API_KEY: process.env.ERP_API_KEY,
 
   // File Upload
-  UPLOAD_PATH: process.env.UPLOAD_PATH || './uploads',
-  MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10), // 10MB default
+  UPLOAD_DIR: process.env.UPLOAD_DIR || './uploads',
+  MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE) || 10485760,
 
-  /**
-   * Validate that all required environment variables are set
-   * @returns {{ valid: boolean, errors: string[] }}
-   */
-  validate() {
-    const errors = [];
+  // Rate Limiting
+  RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000,
+  RATE_LIMIT_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
 
-    if (!this.DATABASE_URL) {
-      errors.push('DATABASE_URL environment variable is required');
-    }
-
-    if (!this.JWT_ACCESS_SECRET || this.JWT_ACCESS_SECRET === 'your-access-secret-key') {
-      errors.push('JWT_ACCESS_SECRET must be set to a secure value');
-    }
-
-    if (!this.JWT_REFRESH_SECRET || this.JWT_REFRESH_SECRET === 'your-refresh-secret-key') {
-      errors.push('JWT_REFRESH_SECRET must be set to a secure value');
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  },
+  // CORS
+  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173'
 };

@@ -31,12 +31,12 @@ model User {
   assignedTasks  WarehouseTask[]  @relation("AssignTo")
 
   lastLogin      DateTime?
-  warehouseScope Warehouse[]      @relation("UserScope")   // optional: restricts user to specific warehouses
+  warehouseScope Warehouse[]      @relation("UserScope")
 }
 
 model Role {
   id          Int      @id @default(autoincrement())
-  name        String   @unique   // e.g., "ADMIN", "WAREHOUSE_MANAGER", "QUALITY_OFFICER", "READ_ONLY"
+  name        String   @unique
   description String?
   users       UserRole[]
   rolePerms   RolePermission[]
@@ -53,8 +53,8 @@ model UserRole {
 
 model Permission {
   id          Int    @id @default(autoincrement())
-  resource    String   // e.g., "INVENTORY", "BATCH", "PURCHASE_ORDER", "AUDIT_LOG"
-  action      String   // e.g., "CREATE", "READ", "UPDATE", "DELETE", "RELEASE_QUARANTINE"
+  resource    String
+  action      String
   description String?
   rolePerms   RolePermission[]
 }
@@ -78,16 +78,16 @@ model RefreshToken {
 }
 
 // ==========================================================================
-// 2. WAREHOUSE HIERARCHY (FR-033, FR-049)
+// 2. WAREHOUSE HIERARCHY
 // ==========================================================================
 
 model Warehouse {
   id            Int      @id @default(autoincrement())
   name          String   @unique
-  location      String   // Addis, Modjo, Adama…
+  location      String
   address       String?
   isActive      Boolean  @default(true)
-  scopeUsers    User[]   @relation("UserScope")   // users restricted to this warehouse
+  scopeUsers    User[]   @relation("UserScope")
 
   zones         Zone[]
   stock         Stock[]
@@ -99,7 +99,7 @@ model Zone {
   warehouseId Int
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
   name        String
-  type        ZoneType // AMBIENT, COLD_ROOM, HAZARDOUS, QUARANTINE, SPARE_PARTS, PACKAGING
+  type        ZoneType
   capacity    Decimal?  @db.Decimal(10,2)
 
   bins         Bin[]
@@ -120,7 +120,7 @@ model Bin {
   id     Int    @id @default(autoincrement())
   zoneId Int
   zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-  label  String // A-01-02-03
+  label  String
   length Decimal? @db.Decimal(5,2)
   width  Decimal? @db.Decimal(5,2)
   height Decimal? @db.Decimal(5,2)
@@ -133,42 +133,42 @@ model Bin {
 }
 
 // ==========================================================================
-// 3. PRODUCTS & CLASSIFICATION (FR-019, FR-047, FR-052)
+// 3. PRODUCTS & CLASSIFICATION
 // ==========================================================================
 
 model Product {
   id            Int       @id @default(autoincrement())
   sku           String    @unique
-  inn           String?   // International Non-proprietary Name for pharma (FR-019)
+  inn           String?
   brandName     String?
   description   String
   category      ProductCategory
-  subCategory   String?   // e.g., Antibiotic, Fortificant, Solvent
-  unitOfMeasure String    @default("EA") // EA, KG, L, BOX
+  subCategory   String?
+  unitOfMeasure String    @default("EA")
 
-  requiresColdChain Boolean   @default(false) // FR-012, FR-016
-  isHazardous        Boolean   @default(false) // FR-015
-  isControlled       Boolean   @default(false) // FR-008 (narcotics, psychotropics)
-  isSparePart        Boolean   @default(false) // FR-046
+  requiresColdChain Boolean   @default(false)
+  isHazardous        Boolean   @default(false)
+  isControlled       Boolean   @default(false)
+  isSparePart        Boolean   @default(false)
 
-  costMethod     CostMethod  @default(FIFO)    // FR-026 FIFO or WEIGHTED_AVERAGE
-  minStockLevel  Decimal?    @db.Decimal(15,4) // reorder point
+  costMethod     CostMethod  @default(FIFO)
+  minStockLevel  Decimal?    @db.Decimal(15,4)
   maxStockLevel  Decimal?    @db.Decimal(15,4)
-  safetyStock    Decimal?    @db.Decimal(15,4) // FR-032, FR-056
+  safetyStock    Decimal?    @db.Decimal(15,4)
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   batches           Batch[]
-  boms              BOM[]              // as finished good
-  componentOfBoms   BOMItem[]          // as raw material
+  boms              BOM[]
+  componentOfBoms   BOMItem[]
   priceHistory      ProductPrice[]
   warehouseCosts    ProductWarehouseCost[]
   alertThresholds   AlertThreshold[]
 }
 
 enum ProductCategory {
-  API               // Active Pharmaceutical Ingredient
+  API
   EXCIPIENT
   FINISHED_PHARMA
   FOOD_INGREDIENT
@@ -185,7 +185,6 @@ enum CostMethod {
   WEIGHTED_AVERAGE
 }
 
-// For real-time product pricing (FR-022, FR-027) and forex
 model ProductPrice {
   id          Int      @id @default(autoincrement())
   productId   Int
@@ -193,11 +192,11 @@ model ProductPrice {
   currency    String   @default("ETB")
   price       Decimal  @db.Decimal(15,4)
   effectiveDate DateTime @default(now())
-  source      String?  // "SUPPLIER_QUOTE", "MARKET_SURVEY"
+  source      String?
+
   @@index([productId, effectiveDate])
 }
 
-// Running weighted-average cost per product per warehouse
 model ProductWarehouseCost {
   productId   Int
   warehouseId Int
@@ -211,7 +210,7 @@ model ProductWarehouseCost {
 }
 
 // ==========================================================================
-// 4. SUPPLIERS & CUSTOMERS (FR-007, FR-035, FR-064)
+// 4. SUPPLIERS & CUSTOMERS
 // ==========================================================================
 
 model Supplier {
@@ -221,8 +220,8 @@ model Supplier {
   email            String?
   phone            String?
   address          String?
-  isSanctioned     Boolean  @default(false)  // FR-064 blacklist
-  certificateValidUntil DateTime? // FR-007
+  isSanctioned     Boolean  @default(false)
+  certificateValidUntil DateTime?
 
   purchaseOrders   PurchaseOrder[]
   supplierRatings  SupplierRating[]
@@ -232,7 +231,7 @@ model Supplier {
 model Customer {
   id          Int      @id @default(autoincrement())
   name        String
-  type        CustomerType // WHOLESALER, HOSPITAL, PHARMACY, RETAIL
+  type        CustomerType
   location    String?
   isActive    Boolean  @default(true)
   salesOrders SalesOrder[]
@@ -258,7 +257,7 @@ model SupplierRating {
   @@index([supplierId, periodEnd])
 }
 
-model RejectionLog { // FR-020
+model RejectionLog {
   id          Int      @id @default(autoincrement())
   supplierId  Int
   supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
@@ -270,7 +269,7 @@ model RejectionLog { // FR-020
 }
 
 // ==========================================================================
-// 5. PROCUREMENT & FOREIGN EXCHANGE (FR-021, FR-025, FR-029)
+// 5. PROCUREMENT & FOREIGN EXCHANGE
 // ==========================================================================
 
 model PurchaseOrder {
@@ -279,8 +278,8 @@ model PurchaseOrder {
   supplierId      Int
   supplier        Supplier @relation(fields: [supplierId], references: [id])
   currency        String   @default("USD")
-  forexRate       Decimal? @db.Decimal(15,6)   // locked exchange rate (FR-021)
-  letterOfCreditId Int?    // FR-025
+  forexRate       Decimal? @db.Decimal(15,6)
+  letterOfCreditId Int?
   expectedDate    DateTime
   status          POStatus @default(DRAFT)
   totalAmount     Decimal? @db.Decimal(15,4)
@@ -289,7 +288,7 @@ model PurchaseOrder {
   items            PurchaseOrderItem[]
   receipts         Receipt[]
   letterOfCredit   LetterOfCredit?  @relation(fields: [letterOfCreditId], references: [id])
-  forexAllocations ForexAllocation[] // if partial LC allocation
+  forexAllocations ForexAllocation[]
 }
 
 enum POStatus {
@@ -337,12 +336,12 @@ model ForexRate {
   id          Int      @id @default(autoincrement())
   currency    String
   rateToETB   Decimal  @db.Decimal(15,6)
-  source      String   @default("NBE") // National Bank of Ethiopia
+  source      String   @default("NBE")
   effectiveDate DateTime
 }
 
 // ==========================================================================
-// 6. INBOUND / GOODS RECEIPT (FR-009, FR-030)
+// 6. INBOUND / GOODS RECEIPT
 // ==========================================================================
 
 model Receipt {
@@ -353,10 +352,10 @@ model Receipt {
   warehouseId     Int
   warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
   receivedDate    DateTime @default(now())
-  iImportPermit   String?  // FR-009 alignment
+  iImportPermit   String?
   status          ReceiptStatus @default(PENDING_INSPECTION)
   supplierInvoice String?
-  demurrageFlag   Boolean  @default(false) // FR-030
+  demurrageFlag   Boolean  @default(false)
 
   items           ReceiptItem[]
 }
@@ -380,15 +379,15 @@ model ReceiptItem {
   manufactureDate  DateTime
   expiryDate       DateTime
   quantityReceived Decimal  @db.Decimal(15,4)
-  quantityAccepted Decimal? @db.Decimal(15,4)  // after quality inspection
-  unitCost         Decimal  @db.Decimal(15,4)   // "bought‑at" price FR-022
+  quantityAccepted Decimal? @db.Decimal(15,4)
+  unitCost         Decimal  @db.Decimal(15,4)
   currency         String   @default("USD")
-  quarantine       Boolean  @default(true)      // FR-014
+  quarantine       Boolean  @default(true)
   labTestRequired  Boolean  @default(false)
 }
 
 // ==========================================================================
-// 7. BATCH & QUALITY MANAGEMENT (FR-001, FR-005, FR-011, FR-013–FR-018)
+// 7. BATCH & QUALITY MANAGEMENT
 // ==========================================================================
 
 model Batch {
@@ -399,7 +398,7 @@ model Batch {
   manufactureDate  DateTime
   expiryDate       DateTime
   status           BatchStatus @default(QUARANTINED)
-  createdFromReceiptItemId Int? // optional traceability to receipt
+  createdFromReceiptItemId Int?
 
   certificates     Certificate[]
   labTests         LabTest[]
@@ -408,7 +407,7 @@ model Batch {
   eudrDocument     EudrDocument?
 
   @@unique([productId, batchNumber])
-  @@index([expiryDate])        // FEFO & expiry alerts
+  @@index([expiryDate])
   @@index([status])
 }
 
@@ -425,19 +424,19 @@ model Certificate {
   id          Int    @id @default(autoincrement())
   batchId     Int
   batch       Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  type        CertType // COC, COA, ORGANIC, DEFORESTATION_FREE (FR-003)
+  type        CertType
   number      String?
   issueDate   DateTime?
   expiryDate  DateTime?
-  filePath    String?  // stored document
-  validatedBy Int?    // user ID
+  filePath    String?
+  validatedBy Int?
 
   @@index([batchId])
 }
 
 enum CertType {
-  COC          // Certificate of Competence
-  COA          // Certificate of Analysis
+  COC
+  COA
   ORGANIC
   DEFORESTATION_FREE
   HALAL
@@ -448,7 +447,7 @@ model LabTest {
   id            Int      @id @default(autoincrement())
   batchId       Int
   batch         Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  testType      String   // e.g., "MICROBIAL", "POTENCY", "MOISTURE"
+  testType      String
   status        TestStatus @default(PENDING)
   resultValue   String?
   performedBy   Int?
@@ -463,12 +462,11 @@ enum TestStatus {
   FAILED
 }
 
-// EUDR documentation for exported commodities (coffee, etc.)
 model EudrDocument {
   id             Int      @id @default(autoincrement())
-  batchId        Int      @unique     // one per batch
+  batchId        Int      @unique
   batch          Batch    @relation(fields: [batchId], references: [id])
-  geoCoordinates String?  // polygon data
+  geoCoordinates String?
   deforestationRisk String?
   certificateUrl String?
   verifiedAt     DateTime?
@@ -476,7 +474,7 @@ model EudrDocument {
 }
 
 // ==========================================================================
-// 8. INVENTORY CORE (STOCK & COST LAYERS)   FR-021–FR-028, FR-053
+// 8. INVENTORY CORE (STOCK & COST LAYERS)
 // ==========================================================================
 
 model Stock {
@@ -491,24 +489,23 @@ model Stock {
   batch       Batch     @relation(fields: [batchId], references: [id])
   quantity    Decimal   @db.Decimal(15,4)
   reservedQty Decimal   @default(0) @db.Decimal(15,4)
-  unitCost    Decimal?  @db.Decimal(15,6)  // snapshot from cost layer for easy FEFO valuation
+  unitCost    Decimal?  @db.Decimal(15,6)
   costLayerId Int?
   costLayer   CostLayer? @relation(fields: [costLayerId], references: [id])
 
-  @@unique([warehouseId, batchId, binId])   // one stock record per bin/batch
-  @@index([batchId, expiryDate])   // FEFO (via batch)
-  @@index([warehouseId, productId]) // product lookup across bins – but productId is in Batch, so we join; could add productId directly for performance, but denormalization would be managed at app level.
+  @@unique([warehouseId, batchId, binId])
+  @@index([batchId, expiryDate])
+  @@index([warehouseId, productId])
 }
 
-// FIFO cost layers (one for each receipt of a product/batch)
 model CostLayer {
   id              Int      @id @default(autoincrement())
   productId       Int
   warehouseId     Int
   batchId         Int?
   receiptItemId   Int?
-  quantity        Decimal  @db.Decimal(15,4)   // originally received qty
-  remainingQty    Decimal  @db.Decimal(15,4)   // un‑consumed
+  quantity        Decimal  @db.Decimal(15,4)
+  remainingQty    Decimal  @db.Decimal(15,4)
   unitCost        Decimal  @db.Decimal(15,6)
   currency        String   @default("ETB")
   createdDate     DateTime @default(now())
@@ -517,19 +514,19 @@ model CostLayer {
 
 model StockLedger {
   id              Int      @id @default(autoincrement())
-  transactionType String   // RECEIPT, PICK, TRANSFER, ADJUSTMENT, RETURN, DISPOSAL
+  transactionType String
   productId       Int
   batchId         Int
   batch           Batch    @relation(fields: [batchId], references: [id])
   warehouseId     Int
   fromBinId       Int?
   toBinId         Int?
-  quantityChange  Decimal  @db.Decimal(15,4)   // positive = in, negative = out
+  quantityChange  Decimal  @db.Decimal(15,4)
   runningQuantity Decimal  @db.Decimal(15,4)
-  costLayerId     Int?     // for FIFO consumption
-  referenceId     Int?     // PK of source document (ReceiptItem, SalesOrderItem, Transfer)
+  costLayerId     Int?
+  referenceId     Int?
   referenceType   String?
-  createdBy       Int?     // user ID
+  createdBy       Int?
   createdAt       DateTime @default(now())
 
   @@index([batchId, createdAt])
@@ -538,7 +535,7 @@ model StockLedger {
 }
 
 // ==========================================================================
-// 9. SALES / DISTRIBUTION (FR-039, FR-040, FR-085, FR-086)
+// 9. SALES / DISTRIBUTION
 // ==========================================================================
 
 model SalesOrder {
@@ -569,14 +566,13 @@ model SalesOrderItem {
   salesOrderId Int
   salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
   productId    Int
-  batchId      Int?      // to enforce FEFO we allocate specific batch
+  batchId      Int?
   quantity     Decimal   @db.Decimal(15,4)
   unitPrice    Decimal   @db.Decimal(15,4)
   pickedQty    Decimal   @default(0)
   shippedQty   Decimal   @default(0)
 }
 
-// Reverse logistics FR-040
 model Return {
   id              Int      @id @default(autoincrement())
   salesOrderId    Int
@@ -594,11 +590,11 @@ model ReturnItem {
   productId  Int
   batchId    Int?
   quantity   Decimal  @db.Decimal(15,4)
-  disposition String  // RESTOCK, SCRAP, INSPECT
+  disposition String
 }
 
 // ==========================================================================
-// 10. WAREHOUSE OPERATIONS & IoT (FR-012, FR-016, FR-075–FR-076)
+// 10. WAREHOUSE OPERATIONS & IoT
 // ==========================================================================
 
 model IotReading {
@@ -606,7 +602,7 @@ model IotReading {
   sensorId  String
   zoneId    Int?
   warehouseId Int?
-  readingType String  // TEMPERATURE, HUMIDITY
+  readingType String
   value     Decimal  @db.Decimal(8,3)
   recordedAt DateTime @default(now())
 
@@ -621,7 +617,7 @@ model WarehouseTask {
   assignedTo  Int?
   assignedUser User?    @relation("AssignTo", fields: [assignedTo], references: [id])
   referenceId Int?
-  referenceType String? // "RECEIPT", "SALES_ORDER", "CYCLE_COUNT"
+  referenceType String?
   createdDate DateTime @default(now())
   completedDate DateTime?
 }
@@ -642,12 +638,12 @@ enum TaskStatus {
 }
 
 // ==========================================================================
-// 11. PRODUCTION & BOM (FR-041–FR-045)
+// 11. PRODUCTION & BOM
 // ==========================================================================
 
 model BOM {
   id          Int      @id @default(autoincrement())
-  productId   Int      @unique    // finished good
+  productId   Int      @unique
   product     Product  @relation(fields: [productId], references: [id])
   version     Int      @default(1)
   isActive    Boolean  @default(true)
@@ -693,7 +689,7 @@ model WorkOrderMaterial {
   workOrderId   Int
   workOrder     WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   productId     Int
-  batchId       Int?      // allocated batch for FEFO
+  batchId       Int?
   plannedQty    Decimal   @db.Decimal(15,4)
   consumedQty   Decimal?  @db.Decimal(15,4)
   costLayerId   Int?
@@ -709,12 +705,12 @@ model WorkOrderOutput {
 }
 
 // ==========================================================================
-// 12. COMPLIANCE & REGULATORY EXPORT (FR-002, FR-004, FR-088)
+// 12. COMPLIANCE & REGULATORY EXPORT
 // ==========================================================================
 
 model RegulatoryExport {
   id          Int      @id @default(autoincrement())
-  exportType  String   // ERIS, TAX, EUDR
+  exportType  String
   parameters  Json?
   generatedBy Int?
   generatedAt DateTime @default(now())
@@ -723,7 +719,7 @@ model RegulatoryExport {
 }
 
 // ==========================================================================
-// 13. ALERTS & NOTIFICATIONS (FR-013, FR-061, FR-069)
+// 13. ALERTS & NOTIFICATIONS
 // ==========================================================================
 
 model AlertThreshold {
@@ -731,16 +727,16 @@ model AlertThreshold {
   productId Int
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   alertType AlertType
-  daysBeforeExpiry Int?   // for expiry alerts
+  daysBeforeExpiry Int?
   minStockLevel    Decimal? @db.Decimal(15,4)
-  notifyRoles      String?  // comma-separated role names
+  notifyRoles      String?
   isActive Boolean @default(true)
 }
 
 enum AlertType {
   EXPIRY_WARNING
   STOCK_OUT_RISK
-  CRITICAL_LIFE_SAVING_STOCKOUT  // FR-061 zero tolerance
+  CRITICAL_LIFE_SAVING_STOCKOUT
   HAZARD_EXPOSURE
 }
 
@@ -755,15 +751,15 @@ model AlertLog {
 }
 
 // ==========================================================================
-// 14. AUDIT & SECURITY (FR-067–FR-074, FR-083)
+// 14. AUDIT & SECURITY
 // ==========================================================================
 
 model AuditLog {
   id          Int      @id @default(autoincrement())
   userId      Int?
   user        User?    @relation(fields: [userId], references: [id])
-  action      String   // CREATE, UPDATE, DELETE, LOGIN, QUARANTINE_RELEASE
-  entity      String   // table name (e.g., "Stock", "Batch")
+  action      String
+  entity      String
   entityId    Int?
   oldValues   Json?
   newValues   Json?
@@ -775,13 +771,12 @@ model AuditLog {
   @@index([createdAt])
 }
 
-// For blockchain readiness – immutable event stream of batch movements (FR-083)
 model BatchEvent {
   id          Int      @id @default(autoincrement())
   batchId     Int
-  eventType   String   // "RECEIVED", "QUARANTINED", "RELEASED", "PICKED", "SHIPPED", "RECALLED"
+  eventType   String
   payload     Json
-  hash        String?  // optional chainpoint
+  hash        String?
   createdAt   DateTime @default(now())
 
   @@index([batchId, createdAt])

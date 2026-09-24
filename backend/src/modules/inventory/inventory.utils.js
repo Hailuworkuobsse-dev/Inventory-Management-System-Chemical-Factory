@@ -1,165 +1,169 @@
 /**
- * Inventory Utility Functions
- * Implements FIFO, FEFO, and Weighted Average Cost calculations
+ * Inventory utilities for AIMS
+ * Provides helper functions for FEFO, FIFO, and cost calculations
  */
 
 /**
- * Apply FIFO (First-In-First-Out) logic to a list of batches
- * @param {Array} batches - Array of batch objects with quantity and cost
- * @param {number} quantityToConsume - Amount to consume
- * @returns {Object} { consumed: [], remaining: [], totalCost: number }
+ * Select the best batch for picking based on FEFO (First Expired, First Out)
+ * @param {Array} batches - Array of batches with expiry dates and quantities
+ * @param {number} quantityNeeded - Quantity needed to pick
+ * @returns {Array} - Array of batch selections with quantities
  */
-function applyFIFO(batches, quantityToConsume) {
-  const sortedBatches = [...batches].sort((a, b) => new Date(a.receivedAt) - new Date(b.receivedAt));
-  let remainingQty = quantityToConsume;
-  const consumed = [];
-  let totalCost = 0;
+const selectBatchesFEFO = (batches, quantityNeeded) => {
+  // Sort batches by expiry date (earliest first)
+  const sortedBatches = [...batches].sort((a, b) => 
+    new Date(a.expiryDate) - new Date(b.expiryDate)
+  );
+
+  const selections = [];
+  let remainingNeeded = parseFloat(quantityNeeded);
 
   for (const batch of sortedBatches) {
-    if (remainingQty <= 0) break;
+    if (remainingNeeded <= 0) break;
 
-    const takeQty = Math.min(batch.quantity, remainingQty);
+    const availableQty = parseFloat(batch.availableQuantity || batch.quantity);
+    if (availableQty <= 0) continue;
+
+    const quantityToPick = Math.min(remainingNeeded, availableQty);
     
-    consumed.push({
+    selections.push({
       batchId: batch.id,
-      quantity: takeQty,
-      costPerUnit: batch.costPrice,
-      totalCost: takeQty * batch.costPrice
+      batchNumber: batch.batchNumber,
+      expiryDate: batch.expiryDate,
+      quantity: quantityToPick
     });
 
-    totalCost += takeQty * batch.costPrice;
-    remainingQty -= takeQty;
+    remainingNeeded -= quantityToPick;
+  }
+
+  if (remainingNeeded > 0) {
+    throw new Error(`Insufficient stock. Still need ${remainingNeeded} units`);
+  }
+
+  return selections;
+};
+
+/**
+ * Calculate cost of goods sold using FIFO (First In, First Out) method
+ * @param {Array} stockLayers - Array of stock layers with cost prices and quantities
+ * @param {number} quantity - Quantity to calculate cost for
+ * @returns {Object} - { totalCost, averageCost, layers }
+ */
+const calculateFIFOCost = (stockLayers, quantity) => {
+  const sortedLayers = [...stockLayers].sort((a, b) => 
+    new Date(a.receivedDate) - new Date(b.receivedDate)
+  );
+
+  let remainingQty = parseFloat(quantity);
+  let totalCost = 0;
+  const usedLayers = [];
+
+  for (const layer of sortedLayers) {
+    if (remainingQty <= 0) break;
+
+    const availableQty = parseFloat(layer.quantity);
+    if (availableQty <= 0) continue;
+
+    const qtyToUse = Math.min(remainingQty, availableQty);
+    const layerCost = parseFloat(layer.costPrice);
+    
+    totalCost += qtyToUse * layerCost;
+    usedLayers.push({
+      layerId: layer.id,
+      quantityUsed: qtyToUse,
+      costPrice: layerCost,
+      totalLayerCost: qtyToUse * layerCost
+    });
+
+    remainingQty -= qtyToUse;
   }
 
   if (remainingQty > 0) {
-    throw new Error(`Insufficient stock. Still need: ${remainingQty}`);
+    throw new Error(`Insufficient stock layers. Still need ${remainingQty} units`);
   }
 
-  return { consumed, totalCost };
-}
+  const averageCost = totalCost / parseFloat(quantity);
+
+  return {
+    totalCost: parseFloat(totalCost.toFixed(2)),
+    averageCost: parseFloat(averageCost.toFixed(4)),
+    layers: usedLayers
+  };
+};
 
 /**
- * Apply FEFO (First-Expired-First-Out) logic
- * @param {Array} batches - Array of batch objects with quantity, cost, expiresAt
- * @param {number} quantityToConsume - Amount to consume
- * @returns {Object} { consumed: [], remaining: [], totalCost: number }
+ * Calculate weighted average cost for inventory valuation
+ * @param {Array} stockLayers - Array of stock layers with cost prices and quantities
+ * @returns {number} - Weighted average cost per unit
  */
-function applyFEFO(batches, quantityToConsume) {
-  const sortedBatches = [...batches].sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt));
-  let remainingQty = quantityToConsume;
-  const consumed = [];
-  let totalCost = 0;
-
-  for (const batch of sortedBatches) {
-    if (remainingQty <= 0) break;
-
-    // Skip expired batches
-    if (new Date(batch.expiresAt) < new Date()) {
-      continue; // Or handle as waste
-    }
-
-    const takeQty = Math.min(batch.quantity, remainingQty);
-    
-    consumed.push({
-      batchId: batch.id,
-      quantity: takeQty,
-      costPerUnit: batch.costPrice,
-      totalCost: takeQty * batch.costPrice
-    });
-
-    totalCost += takeQty * batch.costPrice;
-    remainingQty -= takeQty;
-  }
-
-  if (remainingQty > 0) {
-    throw new Error(`Insufficient non-expired stock. Still need: ${remainingQty}`);
-  }
-
-  return { consumed, totalCost };
-}
-
-/**
- * Calculate Moving Average Cost
- * @param {number} currentQty - Current quantity in stock
- * @param {number} currentAvgCost - Current average cost
- * @param {number} addedQty - Quantity being added
- * @param {number} addedCost - Cost per unit of added quantity
- * @returns {number} New average cost
- */
-function calculateMovingAverage(currentQty, currentAvgCost, addedQty, addedCost) {
-  if (addedQty <= 0) return currentAvgCost;
-  
-  const totalCurrentValue = currentQty * currentAvgCost;
-  const totalAddedValue = addedQty * addedCost;
-  const newTotalQty = currentQty + addedQty;
-  
-  return (totalCurrentValue + totalAddedValue) / newTotalQty;
-}
-
-/**
- * Calculate inventory valuation
- * @param {Array} stockLevels - Array of stock level objects
- * @returns {Object} { totalValue, totalQty, byWarehouse, byItem }
- */
-function calculateInventoryValuation(stockLevels) {
+const calculateWeightedAverageCost = (stockLayers) => {
   let totalValue = 0;
-  let totalQty = 0;
-  const byWarehouse = {};
-  const byItem = {};
+  let totalQuantity = 0;
 
-  for (const stock of stockLevels) {
-    const value = stock.quantity * (stock.avgCost || 0);
+  for (const layer of stockLayers) {
+    const qty = parseFloat(layer.quantity);
+    const cost = parseFloat(layer.costPrice);
     
-    totalValue += value;
-    totalQty += stock.quantity;
-
-    // By Warehouse
-    if (!byWarehouse[stock.warehouseId]) {
-      byWarehouse[stock.warehouseId] = { value: 0, qty: 0 };
-    }
-    byWarehouse[stock.warehouseId].value += value;
-    byWarehouse[stock.warehouseId].qty += stock.quantity;
-
-    // By Item
-    if (!byItem[stock.itemId]) {
-      byItem[stock.itemId] = { value: 0, qty: 0 };
-    }
-    byItem[stock.itemId].value += value;
-    byItem[stock.itemId].qty += stock.quantity;
+    totalValue += qty * cost;
+    totalQuantity += qty;
   }
 
-  return { totalValue, totalQty, byWarehouse, byItem };
-}
+  if (totalQuantity === 0) return 0;
+
+  return parseFloat((totalValue / totalQuantity).toFixed(4));
+};
 
 /**
- * Check if batch is near expiry
- * @param {Date} expiresAt - Expiry date
- * @param {number} thresholdDays - Warning threshold in days
- * @returns {boolean}
+ * Check if a batch is expired or nearing expiry
+ * @param {Date} expiryDate - Batch expiry date
+ * @param {number} warningDays - Number of days before expiry to warn (default: 90)
+ * @returns {Object} - { isExpired, isExpiringSoon, daysRemaining, status }
  */
-function isNearExpiry(expiresAt, thresholdDays = 30) {
+const checkBatchExpiryStatus = (expiryDate, warningDays = 90) => {
   const now = new Date();
-  const expiry = new Date(expiresAt);
-  const diffTime = expiry - now;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  return diffDays <= thresholdDays && diffDays >= 0;
-}
+  const expiry = new Date(expiryDate);
+  const daysRemaining = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+
+  return {
+    isExpired: daysRemaining < 0,
+    isExpiringSoon: daysRemaining >= 0 && daysRemaining <= warningDays,
+    daysRemaining,
+    status: daysRemaining < 0 ? 'EXPIRED' : 
+            daysRemaining <= warningDays ? 'EXPIRING_SOON' : 'OK'
+  };
+};
 
 /**
- * Check if batch is expired
- * @param {Date} expiresAt - Expiry date
- * @returns {boolean}
+ * Validate stock quantity for an operation
+ * @param {number} currentStock - Current stock level
+ * @param {number} quantity - Quantity to add/remove (negative for removal)
+ * @param {boolean} allowNegative - Whether to allow negative stock (default: false)
+ * @returns {Object} - { isValid, newStock, error }
  */
-function isExpired(expiresAt) {
-  return new Date(expiresAt) < new Date();
-}
+const validateStockQuantity = (currentStock, quantity, allowNegative = false) => {
+  const current = parseFloat(currentStock);
+  const qty = parseFloat(quantity);
+  const newStock = current + qty;
+
+  if (!allowNegative && newStock < 0) {
+    return {
+      isValid: false,
+      newStock: null,
+      error: `Insufficient stock. Current: ${current}, Requested: ${Math.abs(qty)}`
+    };
+  }
+
+  return {
+    isValid: true,
+    newStock: parseFloat(newStock.toFixed(4)),
+    error: null
+  };
+};
 
 module.exports = {
-  applyFIFO,
-  applyFEFO,
-  calculateMovingAverage,
-  calculateInventoryValuation,
-  isNearExpiry,
-  isExpired
+  selectBatchesFEFO,
+  calculateFIFOCost,
+  calculateWeightedAverageCost,
+  checkBatchExpiryStatus,
+  validateStockQuantity
 };

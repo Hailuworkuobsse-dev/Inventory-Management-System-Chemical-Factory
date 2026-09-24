@@ -1,172 +1,161 @@
 const request = require('supertest');
-const app = require('../../../src/app');
+const app = require('../../src/app');
+const prisma = require('../../src/utils/prisma');
 
-/**
- * End-to-End Test: Receipt to Ship Flow
- * 
- * This test covers the complete inventory lifecycle:
- * 1. Create Purchase Order
- * 2. Receive Goods (GRN)
- * 3. Quality Check
- * 4. Create Sales Order
- * 5. Pick Stock (FEFO)
- * 6. Ship Order
- */
-describe('E2E: Receipt to Ship Flow', () => {
+describe('E2E Tests - Receipt to Ship Workflow', () => {
   let authToken;
-  let purchaseOrderId;
-  let goodsReceiptId;
+  let productId;
   let batchId;
+  let purchaseOrderId;
   let salesOrderId;
 
-  beforeAll(async () => {
-    // Setup: Login as warehouse manager
-    const loginResponse = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'warehouse.manager@example.com',
-        password: 'password123'
-      });
+  const testUser = {
+    email: 'e2e@example.com',
+    password: 'E2ETest123!@#',
+    firstName: 'E2E',
+    lastName: 'Test'
+  };
 
-    if (loginResponse.body.data) {
-      authToken = loginResponse.body.data.accessToken;
-    }
+  const productData = {
+    sku: 'E2E-SKU-001',
+    inn: 'Test INN',
+    brandName: 'Test Brand',
+    dosageForm: 'Tablet',
+    strength: '500mg',
+    manufacturer: 'Test Pharma',
+    countryOfOrigin: 'Ethiopia'
+  };
+
+  beforeAll(async () => {
+    // Register and login
+    await request(app).post('/api/v1/auth/register').send(testUser);
+    const loginRes = await request(app).post('/api/v1/auth/login').send({
+      email: testUser.email,
+      password: testUser.password
+    });
+    authToken = loginRes.body.data.accessToken;
   });
 
-  describe('Complete Flow', () => {
-    it('Step 1: Create Purchase Order', async () => {
-      const poData = {
-        supplierId: 'supplier-001',
-        warehouseId: 'warehouse-001',
-        items: [
-          {
-            itemId: 'item-001',
-            quantity: 500,
-            unitPrice: 25.00
-          }
-        ],
-        expectedDeliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-      };
+  afterAll(async () => {
+    // Cleanup test data
+    await prisma.salesOrder.deleteMany({ where: { orderNumber: { startsWith: 'E2E-' } } });
+    await prisma.purchaseOrder.deleteMany({ where: { orderNumber: { startsWith: 'E2E-' } } });
+    await prisma.batch.deleteMany({ where: { batchNumber: { startsWith: 'E2E-' } } });
+    await prisma.product.deleteMany({ where: { sku: productData.sku } });
+    await prisma.user.deleteMany({ where: { email: testUser.email } });
+    await prisma.$disconnect();
+  });
 
+  describe('Complete Procurement to Sales Workflow', () => {
+    it('should create a product', async () => {
       const response = await request(app)
-        .post('/api/procurement/purchase-orders')
+        .post('/api/v1/products')
         .set('Authorization', `Bearer ${authToken}`)
-        .send(poData);
+        .send(productData);
 
-      expect([201, 401, 403, 404]).toContain(response.status);
+      expect(response.status).toBe(201);
+      productId = response.body.data.id;
+    });
+
+    it('should create a purchase order', async () => {
+      const response = await request(app)
+        .post('/api/v1/procurement/purchase-orders')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          supplierId: 1, // Assuming default supplier exists
+          items: [{
+            productId,
+            quantity: 1000,
+            unitPrice: 10.00
+          }]
+        });
+
+      expect(response.status).toBe(201);
+      purchaseOrderId = response.body.data.id;
+    });
+
+    it('should receive goods against purchase order', async () => {
+      const response = await request(app)
+        .post(`/api/v1/procurement/purchase-orders/${purchaseOrderId}/receive`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          items: [{
+            itemId: 1,
+            quantityReceived: 1000,
+            batchNumber: 'E2E-BATCH-001',
+            expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+            warehouseId: 1
+          }]
+        });
+
+      expect(response.status).toBe(200);
+      batchId = response.body.data.batches[0].id;
+    });
+
+    it('should verify stock was created', async () => {
+      const response = await request(app)
+        .get('/api/v1/inventory/stock')
+        .set('Authorization', `Bearer ${authToken}`)
+        .query({ productId });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.length).toBeGreaterThan(0);
+    });
+
+    it('should create a sales order', async () => {
+      const response = await request(app)
+        .post('/api/v1/sales/orders')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          customerId: 1, // Assuming default customer exists
+          items: [{
+            productId,
+            quantity: 100,
+            unitPrice: 15.00
+          }]
+        });
+
+      expect(response.status).toBe(201);
+      salesOrderId = response.body.data.id;
+    });
+
+    it('should fulfill the sales order', async () => {
+      const response = await request(app)
+        .post(`/api/v1/sales/orders/${salesOrderId}/fulfill`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          warehouseId: 1
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe('FULFILLED');
+    });
+
+    it('should verify stock was reduced', async () => {
+      const response = await request(app)
+        .get('/api/v1/inventory/stock')
+        .set('Authorization', `Bearer ${authToken}`)
+        .query({ productId });
+
+      expect(response.status).toBe(200);
+      const stockItem = response.body.data.find(s => s.productId === productId);
+      expect(parseFloat(stockItem.quantity)).toBeLessThan(1000);
+    });
+
+    it('should verify stock ledger entries were created', async () => {
+      const response = await request(app)
+        .get('/api/v1/inventory/ledger')
+        .set('Authorization', `Bearer ${authToken}`)
+        .query({ productId });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.length).toBeGreaterThan(1); // At least receipt and issue
       
-      if (response.status === 201) {
-        purchaseOrderId = response.body.data.id;
-      }
-    });
-
-    it('Step 2: Receive Goods (Create GRN)', async () => {
-      const receiptData = {
-        warehouseId: 'warehouse-001',
-        supplierId: 'supplier-001',
-        poNumber: purchaseOrderId,
-        items: [
-          {
-            itemId: 'item-001',
-            quantity: 500,
-            costPrice: 25.00,
-            manufacturingDate: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-          }
-        ],
-        qualityStatus: 'PENDING'
-      };
-
-      const response = await request(app)
-        .post('/api/inventory/receipts')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(receiptData);
-
-      expect([201, 401, 403, 404]).toContain(response.status);
+      const receipt = response.body.data.find(l => l.movementType === 'RECEIPT');
+      const issue = response.body.data.find(l => l.movementType === 'ISSUE');
       
-      if (response.status === 201) {
-        goodsReceiptId = response.body.data.id;
-        // Extract batch ID from response for later steps
-        batchId = response.body.data.items?.[0]?.batches?.[0]?.id;
-      }
-    });
-
-    it('Step 3: Quality Check - Accept Batch', async () => {
-      const qualityData = {
-        batchId: batchId || 'batch-001',
-        status: 'ACTIVE',
-        reason: 'Quality check passed'
-      };
-
-      const response = await request(app)
-        .patch(`/api/quality/batches/${qualityData.batchId}/status`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(qualityData);
-
-      expect([200, 401, 403, 404]).toContain(response.status);
-    });
-
-    it('Step 4: Create Sales Order', async () => {
-      const orderData = {
-        customerId: 'customer-001',
-        warehouseId: 'warehouse-001',
-        items: [
-          {
-            itemId: 'item-001',
-            quantity: 100
-          }
-        ],
-        priority: 'NORMAL'
-      };
-
-      const response = await request(app)
-        .post('/api/sales/orders')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(orderData);
-
-      expect([201, 401, 403, 404]).toContain(response.status);
-      
-      if (response.status === 201) {
-        salesOrderId = response.body.data.id;
-      }
-    });
-
-    it('Step 5: Pick Stock (FEFO)', async () => {
-      const response = await request(app)
-        .post(`/api/inventory/orders/${salesOrderId || 'order-001'}/pick`)
-        .set('Authorization', `Bearer ${authToken}`);
-
-      expect([200, 401, 403, 404]).toContain(response.status);
-    });
-
-    it('Step 6: Update Order Status to Shipped', async () => {
-      const statusData = {
-        status: 'SHIPPED'
-      };
-
-      const response = await request(app)
-        .patch(`/api/sales/orders/${salesOrderId || 'order-001'}/status`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(statusData);
-
-      expect([200, 401, 403, 404]).toContain(response.status);
-    });
-
-    it('Step 7: Verify Stock Levels Updated', async () => {
-      const response = await request(app)
-        .get('/api/inventory/stock-levels?itemId=item-001')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      expect([200, 401, 403, 404]).toContain(response.status);
-      
-      if (response.status === 200) {
-        // Verify stock was reduced by 100 units
-        const totalStock = response.body.data.reduce(
-          (sum, level) => sum + level.quantity, 
-          0
-        );
-        expect(totalStock).toBeLessThan(500); // Started with 500, sold 100
-      }
+      expect(receipt).toBeDefined();
+      expect(issue).toBeDefined();
     });
   });
 });

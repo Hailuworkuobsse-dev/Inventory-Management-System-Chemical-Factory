@@ -1,190 +1,152 @@
 const prisma = require('../utils/prisma');
 
 /**
- * Audit Service
- * Centralised function to log any entity change into AuditLog
- * Called from every module's service layer (FR-068, FR-069)
+ * Log an audit entry for any entity change
+ * @param {Object} options - Audit log options
+ * @param {number} options.userId - ID of the user performing the action
+ * @param {string} options.action - Action performed (CREATE, UPDATE, DELETE, etc.)
+ * @param {string} options.entity - Entity type (e.g., 'Stock', 'Batch', 'PurchaseOrder')
+ * @param {number} options.entityId - ID of the affected entity
+ * @param {Object} [options.oldValue] - Previous state of the entity
+ * @param {Object} [options.newValue] - New state of the entity
+ * @param {string} [options.reason] - Optional reason for the action
+ * @returns {Promise<Object>} Created audit log entry
  */
-class AuditService {
-  /**
-   * Log an audit entry
-   * @param {Object} options - Audit log options
-   * @param {string} options.entity - Entity name (e.g., 'Stock', 'Batch')
-   * @param {number|string} options.entityId - ID of the affected entity
-   * @param {string} options.action - Action performed (CREATE, UPDATE, DELETE, QUARANTINE, etc.)
-   * @param {number} options.userId - ID of the user who performed the action
-   * @param {Object} [options.previousState] - Previous state of the entity
-   * @param {Object} [options.newState] - New state of the entity
-   * @param {string} [options.reason] - Reason for the change (optional)
-   * @param {string} [options.ipAddress] - IP address of the request
-   * @returns {Promise<Object>} - Created audit log entry
-   */
-  async log(options) {
-    const {
-      entity,
-      entityId,
-      action,
-      userId,
-      previousState,
-      newState,
-      reason,
-      ipAddress,
-    } = options;
+const logAudit = async ({ userId, action, entity, entityId, oldValue, newValue, reason }) => {
+  try {
+    const auditLog = await prisma.auditLog.create({
+      data: {
+        userId,
+        action,
+        entity,
+        entityId,
+        oldValue: oldValue || null,
+        newValue: newValue || null,
+        reason: reason || null
+      }
+    });
 
-    try {
-      const auditLog = await prisma.auditLog.create({
-        data: {
-          entity,
-          entityId: String(entityId),
-          action,
-          userId,
-          previousState: previousState || {},
-          newState: newState || {},
-          reason: reason || null,
-          ipAddress: ipAddress || null,
-          timestamp: new Date(),
-        },
-      });
+    console.log(`Audit: ${action} on ${entity}#${entityId} by user #${userId}`);
+    return auditLog;
+  } catch (error) {
+    console.error('Failed to create audit log:', error);
+    // Don't throw - audit logging should not block main operation
+    return null;
+  }
+};
 
-      return auditLog;
-    } catch (error) {
-      // Don't throw error if audit logging fails - it shouldn't break the main operation
-      console.error('Failed to create audit log:', error);
-      return null;
-    }
+/**
+ * Log batch status change with full traceability
+ * @param {number} userId - User ID
+ * @param {number} batchId - Batch ID
+ * @param {string} oldStatus - Previous status
+ * @param {string} newStatus - New status
+ * @param {string} [reason] - Reason for status change
+ * @returns {Promise<Object>} Audit log entry
+ */
+const logBatchStatusChange = async (userId, batchId, oldStatus, newStatus, reason) => {
+  return logAudit({
+    userId,
+    action: 'STATUS_CHANGE',
+    entity: 'Batch',
+    entityId: batchId,
+    oldValue: { status: oldStatus },
+    newValue: { status: newStatus },
+    reason
+  });
+};
+
+/**
+ * Log stock movement
+ * @param {Object} options - Stock movement audit options
+ * @returns {Promise<Object>} Audit log entry
+ */
+const logStockMovement = async ({ userId, stockId, action, quantity, reason, oldValue, newValue }) => {
+  return logAudit({
+    userId,
+    action,
+    entity: 'Stock',
+    entityId: stockId,
+    oldValue,
+    newValue,
+    reason
+  });
+};
+
+/**
+ * Get audit logs for an entity
+ * @param {string} entity - Entity type
+ * @param {number} entityId - Entity ID
+ * @param {Object} options - Query options
+ * @returns {Promise<Array>} Array of audit logs
+ */
+const getEntityAuditLogs = async (entity, entityId, options = {}) => {
+  const { limit = 50, offset = 0, action } = options;
+
+  const where = {
+    entity,
+    entityId
+  };
+
+  if (action) {
+    where.action = action;
   }
 
-  /**
-   * Log batch event (for blockchain/event stream - FR-083)
-   * @param {Object} options - Event options
-   * @param {number} options.batchId - Batch ID
-   * @param {string} options.eventType - Event type (RECEIVED, QUARANTINED, RELEASED, RECALLED, etc.)
-   * @param {number} options.userId - User ID
-   * @param {Object} [options.metadata] - Additional event metadata
-   * @returns {Promise<Object>} - Created batch event
-   */
-  async logBatchEvent(options) {
-    const { batchId, eventType, userId, metadata } = options;
+  return prisma.auditLog.findMany({
+    where,
+    include: {
+      user: {
+        select: {
+          id: true,
+          fullName: true,
+          employeeId: true
+        }
+      }
+    },
+    orderBy: { timestamp: 'desc' },
+    skip: offset,
+    take: limit
+  });
+};
 
-    try {
-      const batchEvent = await prisma.batchEvent.create({
-        data: {
-          batchId,
-          eventType,
-          userId,
-          metadata: metadata || {},
-          timestamp: new Date(),
-        },
-      });
+/**
+ * Get user activity logs
+ * @param {number} userId - User ID
+ * @param {Object} options - Query options
+ * @returns {Promise<Array>} Array of audit logs
+ */
+const getUserActivityLogs = async (userId, options = {}) => {
+  const { limit = 50, offset = 0, startDate, endDate } = options;
 
-      return batchEvent;
-    } catch (error) {
-      console.error('Failed to create batch event:', error);
-      throw error;
-    }
+  const where = { userId };
+
+  if (startDate || endDate) {
+    where.timestamp = {};
+    if (startDate) where.timestamp.gte = new Date(startDate);
+    if (endDate) where.timestamp.lte = new Date(endDate);
   }
 
-  /**
-   * Get audit logs for an entity
-   * @param {string} entity - Entity name
-   * @param {number|string} entityId - Entity ID
-   * @param {Object} options - Query options
-   * @returns {Promise<Array>} - Array of audit logs
-   */
-  async getEntityAuditLogs(entity, entityId, options = {}) {
-    const { page = 1, limit = 50, action, userId, dateFrom, dateTo } = options;
-    const skip = (page - 1) * limit;
+  return prisma.auditLog.findMany({
+    where,
+    include: {
+      user: {
+        select: {
+          id: true,
+          fullName: true,
+          employeeId: true
+        }
+      }
+    },
+    orderBy: { timestamp: 'desc' },
+    skip: offset,
+    take: limit
+  });
+};
 
-    const where = {
-      entity,
-      entityId: String(entityId),
-    };
-
-    if (action) where.action = action;
-    if (userId) where.userId = userId;
-    if (dateFrom || dateTo) {
-      where.timestamp = {};
-      if (dateFrom) where.timestamp.gte = new Date(dateFrom);
-      if (dateTo) where.timestamp.lte = new Date(dateTo);
-    }
-
-    const [logs, total] = await Promise.all([
-      prisma.auditLog.findMany({
-        where,
-        orderBy: { timestamp: 'desc' },
-        skip,
-        take: limit,
-        include: {
-          user: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
-            },
-          },
-        },
-      }),
-      prisma.auditLog.count({ where }),
-    ]);
-
-    return {
-      logs,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
-  }
-
-  /**
-   * Get audit logs for a user
-   * @param {number} userId - User ID
-   * @param {Object} options - Query options
-   * @returns {Promise<Array>} - Array of audit logs
-   */
-  async getUserAuditLogs(userId, options = {}) {
-    const { page = 1, limit = 50, dateFrom, dateTo } = options;
-    const skip = (page - 1) * limit;
-
-    const where = { userId };
-
-    if (dateFrom || dateTo) {
-      where.timestamp = {};
-      if (dateFrom) where.timestamp.gte = new Date(dateFrom);
-      if (dateTo) where.timestamp.lte = new Date(dateTo);
-    }
-
-    const [logs, total] = await Promise.all([
-      prisma.auditLog.findMany({
-        where,
-        orderBy: { timestamp: 'desc' },
-        skip,
-        take: limit,
-        include: {
-          user: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
-            },
-          },
-        },
-      }),
-      prisma.auditLog.count({ where }),
-    ]);
-
-    return {
-      logs,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
-  }
-}
-
-module.exports = new AuditService();
+module.exports = {
+  logAudit,
+  logBatchStatusChange,
+  logStockMovement,
+  getEntityAuditLogs,
+  getUserActivityLogs
+};

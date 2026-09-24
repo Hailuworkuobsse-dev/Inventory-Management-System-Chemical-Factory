@@ -7,14 +7,17 @@ const rbacMiddleware = require('../../middleware/rbacMiddleware');
 // All routes require authentication
 router.use(authMiddleware);
 
-// Alerts endpoints
-router.get('/alerts', rbacMiddleware('ALERT', 'READ'), alertsController.listAlerts);
-router.put('/alerts/:id/acknowledge', rbacMiddleware('ALERT', 'UPDATE'), alertsController.acknowledgeAlert);
+// Alert management routes
+router.get('/', rbacMiddleware(['VIEW_ALERTS']), alertsController.listAlerts);
+router.get('/:id', rbacMiddleware(['VIEW_ALERTS']), alertsController.getAlert);
+router.put('/:id/status', rbacMiddleware(['MANAGE_ALERTS']), alertsController.updateAlertStatus);
 
-// Alert thresholds
-router.get('/alert-thresholds', rbacMiddleware('ALERT', 'READ'), alertsController.listAlertThresholds);
-router.post('/alert-thresholds', rbacMiddleware('ALERT', 'CREATE'), alertsController.createAlertThreshold);
-router.put('/alert-thresholds/:id', rbacMiddleware('ALERT', 'UPDATE'), alertsController.updateAlertThreshold);
-router.delete('/alert-thresholds/:id', rbacMiddleware('ALERT', 'DELETE'), alertsController.deleteAlertThreshold);
+// Alert configuration routes
+router.get('/configurations', rbacMiddleware(['MANAGE_ALERTS']), alertsController.getAlertConfigurations);
+router.put('/configurations/:id', rbacMiddleware(['ADMIN']), alertsController.updateAlertConfiguration);
+
+// Specialized alert endpoints
+router.get('/expiry', rbacMiddleware(['VIEW_ALERTS']), alertsController.getExpiryAlerts);
+router.get('/stock-out', rbacMiddleware(['VIEW_ALERTS']), alertsController.getStockOutAlerts);
 
 module.exports = router;

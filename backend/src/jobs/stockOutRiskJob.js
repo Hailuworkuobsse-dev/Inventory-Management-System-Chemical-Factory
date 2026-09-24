@@ -1,137 +1,81 @@
-const prisma = require('../../utils/prisma');
-const notificationService = require('../../services/notification.service');
+const prisma = require('../utils/prisma');
+const notificationService = require('../services/notification.service');
+const emailSender = require('../utils/emailSender');
+
+let ioInstance = null;
 
 /**
- * Stock-Out Risk Job
- * Compares stock vs. safety stock and flags critical medicines (FR-061)
- * Runs every 6 hours
+ * Check stock levels against safety stock and flag critical medicines (FR-061)
+ * This job runs every 6 hours
  */
-class StockOutRiskJob {
-  /**
-   * Run the stock-out risk job
-   */
-  async run() {
-    console.log('Checking for stock-out risks...');
+const runStockOutRiskJob = async (io) => {
+  if (io) {
+    ioInstance = io;
+  }
 
-    const now = new Date();
-    let totalAlerts = 0;
-
-    // Get all products with safety stock thresholds
-    const products = await prisma.product.findMany({
-      where: {
-        isActive: true,
-      },
+  try {
+    // Get all stock with batch and product information
+    const allStock = await prisma.stock.findMany({
       include: {
-        alertThresholds: {
-          where: {
-            alertType: 'LOW_STOCK',
-          },
+        batch: {
+          include: {
+            product: true
+          }
         },
-      },
+        warehouse: true
+      }
     });
 
-    // Check each product's stock levels across warehouses
-    for (const product of products) {
-      const safetyStock = product.alertThresholds[0]?.value || 100; // Default to 100 if not set
+    // Filter items below safety stock
+    const lowStock = allStock.filter(s => {
+      const safetyStock = s.batch.product.safetyStock;
+      return safetyStock && parseFloat(s.quantity) < parseFloat(safetyStock);
+    });
 
-      // Get current stock for this product
-      const stockLevels = await prisma.stock.groupBy({
-        by: ['warehouseId'],
-        where: {
-          productId: product.id,
-          quantity: { gt: 0 },
-        },
-        _sum: {
-          quantity: true,
-        },
-        include: {
-          warehouse: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      });
-
-      // Check each warehouse
-      for (const stock of stockLevels) {
-        const currentStock = stock._sum.quantity || 0;
-
-        if (currentStock < safetyStock) {
-          // Check if alert already exists
-          const existingAlert = await prisma.alertLog.findFirst({
-            where: {
-              productId: product.id,
-              warehouseId: stock.warehouseId,
-              alertType: 'STOCK_OUT_RISK',
-              acknowledged: false,
-            },
-          });
-
-          if (!existingAlert) {
-            await prisma.alertLog.create({
-              data: {
-                productId: product.id,
-                warehouseId: stock.warehouseId,
-                alertType: 'STOCK_OUT_RISK',
-                severity: currentStock === 0 ? 'CRITICAL' : 'HIGH',
-                message: `Product ${product.name} (${product.sku}) is below safety stock. Current: ${currentStock}, Safety: ${safetyStock}`,
-                triggeredAt: now,
-                acknowledged: false,
-                metadata: {
-                  currentStock,
-                  safetyStock,
-                  shortage: safetyStock - currentStock,
-                },
-              },
-            });
-
-            totalAlerts++;
-          }
-        }
-      }
+    if (lowStock.length === 0) {
+      console.log('All stock levels adequate');
+      return { success: true, message: 'All stock levels adequate', count: 0 };
     }
 
-    // If alerts were created, send notifications
-    if (totalAlerts > 0) {
-      // Get products with stock-out risk
-      const atRiskProducts = await prisma.alertLog.findMany({
-        where: {
-          alertType: 'STOCK_OUT_RISK',
-          acknowledged: false,
-          triggeredAt: { gte: now },
-        },
-        include: {
-          product: {
-            select: {
-              name: true,
-              sku: true,
-            },
-          },
-          warehouse: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      });
+    const alertData = lowStock.map(s => ({
+      stockId: s.id,
+      productId: s.batch.productId,
+      productName: s.batch.product.brandName || s.batch.product.inn,
+      sku: s.batch.product.sku,
+      currentStock: parseFloat(s.quantity),
+      safetyStock: parseFloat(s.batch.product.safetyStock),
+      warehouseName: s.warehouse.name,
+      batchNumber: s.batch.batchNumber,
+      expiryDate: s.batch.expiryDate,
+      shortageAmount: parseFloat(s.batch.product.safetyStock) - parseFloat(s.quantity)
+    }));
 
-      const productsForNotification = atRiskProducts.map(alert => ({
-        productName: alert.product.name,
-        sku: alert.product.sku,
-        currentStock: alert.metadata?.currentStock || 0,
-        safetyStock: alert.metadata?.safetyStock || 0,
-        warehouseName: alert.warehouse?.name || 'Unknown',
-      }));
+    console.log(`Stock-Out Risk: ${alertData.length} items below safety stock`);
 
-      await notificationService.notifyStockOutRisk(productsForNotification);
-      
-      console.log(`Created ${totalAlerts} stock-out risk alerts`);
+    // Send push notification
+    if (ioInstance) {
+      notificationService.notifyStockOutRisk(ioInstance, alertData);
     }
 
-    console.log(`Stock-out risk job completed. Total alerts created: ${totalAlerts}`);
-    return { success: true, alertsCreated: totalAlerts };
+    // Send email to procurement manager
+    const procurementManagerEmail = process.env.PROCUREMENT_MANAGER_EMAIL;
+    if (procurementManagerEmail) {
+      await emailSender.sendStockOutAlert(alertData, procurementManagerEmail);
+    }
+
+    return {
+      success: true,
+      message: 'Stock-out risk alerts processed',
+      count: alertData.length,
+      data: alertData
+    };
+
+  } catch (error) {
+    console.error('Stock-out risk job failed:', error);
+    throw error;
   }
-}
+};
 
-module.exports = new StockOutRiskJob();
+module.exports = {
+  runStockOutRiskJob
+};

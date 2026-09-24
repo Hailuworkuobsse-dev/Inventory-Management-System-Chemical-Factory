@@ -1,130 +1,100 @@
-const prisma = require('../../utils/prisma');
+const prisma = require('../utils/prisma');
 
 /**
- * Lead Time Update Job
- * Computes average lead times from historical receipts (FR-031)
- * Runs monthly on 1st at 03:00
+ * Compute average lead times from historical receipts (FR-031)
+ * This job runs monthly on the 1st day at 03:00
+ * 
+ * Lead time is calculated as the difference between expected delivery date
+ * and actual receipt date for completed purchase orders.
  */
-class LeadTimeUpdateJob {
-  /**
-   * Run the lead time update job
-   */
-  async run() {
-    console.log('Updating supplier lead times...');
-
-    const now = new Date();
-    
-    // Get all active suppliers
-    const suppliers = await prisma.supplier.findMany({
-      where: { isActive: true },
-    });
-
-    for (const supplier of suppliers) {
-      // Get completed purchase orders for this supplier in last 6 months
-      const sixMonthsAgo = new Date(now);
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-      const completedPOs = await prisma.purchaseOrder.findMany({
-        where: {
-          supplierId: supplier.id,
-          status: 'COMPLETED',
-          expectedDate: { gte: sixMonthsAgo },
-          receivedDate: { not: null },
-        },
-        select: {
-          expectedDate: true,
-          receivedDate: true,
-        },
-      });
-
-      if (completedPOs.length > 0) {
-        // Calculate lead times (difference between expected and actual receipt)
-        const leadTimes = completedPOs.map(po => {
-          const diffTime = Math.abs(po.receivedDate - po.expectedDate);
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          return diffDays;
-        });
-
-        // Calculate average lead time
-        const avgLeadTime = leadTimes.reduce((sum, lt) => sum + lt, 0) / leadTimes.length;
-        
-        // Calculate standard deviation
-        const variance = leadTimes.reduce((sum, lt) => sum + Math.pow(lt - avgLeadTime, 2), 0) / leadTimes.length;
-        const stdDev = Math.sqrt(variance);
-
-        // Update supplier with calculated lead time
-        await prisma.supplier.update({
-          where: { id: supplier.id },
-          data: {
-            avgLeadTimeDays: Math.round(avgLeadTime * 10) / 10, // Round to 1 decimal
-            leadTimeStdDev: Math.round(stdDev * 10) / 10,
-            lastLeadTimeCalculation: now,
-          },
-        });
-
-        console.log(`Updated ${supplier.name}: Avg lead time = ${avgLeadTime.toFixed(1)} days (${completedPOs.length} orders)`);
-      }
-    }
-
-    // Also update product-level lead times based on procurement history
-    await this.updateProductLeadTimes();
-
-    console.log('Lead time update job completed');
-    return { success: true };
-  }
-
-  /**
-   * Update product-level lead times
-   */
-  async updateProductLeadTimes() {
-    const now = new Date();
-    const sixMonthsAgo = new Date(now);
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-    // Get all products that have been procured
-    const products = await prisma.product.findMany({
-      where: { isActive: true },
-      include: {
-        purchaseOrderItems: {
-          where: {
-            purchaseOrder: {
-              status: 'COMPLETED',
-              expectedDate: { gte: sixMonthsAgo },
-              receivedDate: { not: null },
-            },
-          },
-          include: {
-            purchaseOrder: {
-              select: {
-                expectedDate: true,
-                receivedDate: true,
-              },
-            },
-          },
-        },
+const runLeadTimeUpdateJob = async () => {
+  try {
+    // Get all completed purchase orders with receipt dates
+    const purchaseOrders = await prisma.purchaseOrder.findMany({
+      where: {
+        status: 'COMPLETED'
       },
+      include: {
+        supplier: true,
+        receipts: {
+          orderBy: { receivedDate: 'asc' }
+        }
+      }
     });
 
-    for (const product of products) {
-      if (product.purchaseOrderItems.length > 0) {
-        const leadTimes = product.purchaseOrderItems.map(poi => {
-          const diffTime = Math.abs(poi.purchaseOrder.receivedDate - poi.purchaseOrder.expectedDate);
-          return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        });
+    if (purchaseOrders.length === 0) {
+      console.log('No completed purchase orders found for lead time analysis');
+      return { success: true, message: 'No completed purchase orders found', data: [] };
+    }
 
-        const avgLeadTime = leadTimes.reduce((sum, lt) => sum + lt, 0) / leadTimes.length;
+    // Calculate lead time per supplier
+    const supplierLeadTimes = {};
 
-        await prisma.product.update({
-          where: { id: product.id },
-          data: {
-            avgProcurementLeadTime: Math.round(avgLeadTime * 10) / 10,
-          },
-        });
+    for (const po of purchaseOrders) {
+      if (!po.receipts.length || !po.expectedDate) continue;
+
+      const firstReceipt = po.receipts[0];
+      const leadTimeDays = Math.ceil(
+        (firstReceipt.receivedDate - new Date(po.orderDate)) / (1000 * 60 * 60 * 24)
+      );
+
+      if (!supplierLeadTimes[po.supplierId]) {
+        supplierLeadTimes[po.supplierId] = {
+          supplierId: po.supplierId,
+          supplierName: po.supplier.name,
+          leadTimes: [],
+          orderCount: 0
+        };
+      }
+      
+      if (leadTimeDays >= 0) {
+        supplierLeadTimes[po.supplierId].leadTimes.push(leadTimeDays);
+        supplierLeadTimes[po.supplierId].orderCount += 1;
       }
     }
 
-    console.log(`Updated lead times for ${products.length} products`);
-  }
-}
+    // Calculate averages
+    const averages = Object.values(supplierLeadTimes)
+      .filter(s => s.leadTimes.length > 0)
+      .map(s => ({
+        supplierId: s.supplierId,
+        supplierName: s.supplierName,
+        averageLeadTime: parseFloat((s.leadTimes.reduce((a, b) => a + b, 0) / s.leadTimes.length).toFixed(2)),
+        minLeadTime: Math.min(...s.leadTimes),
+        maxLeadTime: Math.max(...s.leadTimes),
+        orderCount: s.leadTimes.length
+      }));
 
-module.exports = new LeadTimeUpdateJob();
+    // Update suppliers with their average lead times
+    const updatePromises = averages.map(avg =>
+      prisma.supplier.update({
+        where: { id: avg.supplierId },
+        data: { 
+          averageLeadTime: avg.averageLeadTime,
+          lastLeadTimeCalculation: new Date()
+        }
+      }).catch(err => {
+        console.error(`Failed to update supplier ${avg.supplierId}:`, err.message);
+      })
+    );
+
+    await Promise.all(updatePromises);
+
+    console.log('Lead time analysis complete:', averages);
+    
+    return {
+      success: true,
+      message: 'Lead time analysis completed and updated',
+      count: averages.length,
+      data: averages
+    };
+
+  } catch (error) {
+    console.error('Lead time update job failed:', error);
+    throw error;
+  }
+};
+
+module.exports = {
+  runLeadTimeUpdateJob
+};

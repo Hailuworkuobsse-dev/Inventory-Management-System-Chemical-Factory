@@ -1,122 +1,97 @@
+const prisma = require('../utils/prisma');
+
 /**
- * ERP Integration Service
- * Handles synchronization with external ERP systems
+ * Sync data with external ERP system (FR-078)
+ * @param {string} direction - 'TO_ERP' or 'FROM_ERP'
+ * @param {Object} options - Sync options
+ * @returns {Promise<Object>} Sync result
  */
+const syncWithERP = async (direction, options = {}) => {
+  const config = require('../config');
+  const axios = require('axios');
 
-const { AppError } = require('../../utils/customErrors');
-
-class ERPIntegrationService {
-  constructor(config = {}) {
-    this.config = config;
-    this.enabled = config.enabled || false;
-    this.endpoint = config.endpoint;
-    this.apiKey = config.apiKey;
+  if (!config.ERP_API_URL || !config.ERP_API_KEY) {
+    console.warn('ERP integration not configured. Skipping sync.');
+    return { success: false, message: 'ERP integration not configured' };
   }
 
-  /**
-   * Sync items to ERP
-   */
-  async syncItems(items) {
-    if (!this.enabled) {
-      console.log('ERP integration disabled, skipping sync');
-      return { success: true, synced: 0, message: 'Integration disabled' };
-    }
+  try {
+    if (direction === 'TO_ERP') {
+      // Send inventory data to ERP
+      const stockData = await prisma.stock.findMany({
+        where: options.where || {},
+        include: {
+          batch: {
+            include: {
+              product: true
+            }
+          },
+          warehouse: true,
+          bin: true
+        },
+        take: options.limit || 1000
+      });
 
-    try {
-      // In production, this would make HTTP calls to the ERP API
-      // Example: await axios.post(`${this.endpoint}/items`, { items }, { headers: { Authorization: `Bearer ${this.apiKey}` }});
-      
-      console.log(`Would sync ${items.length} items to ERP`);
-      
+      const payload = {
+        timestamp: new Date().toISOString(),
+        type: 'INVENTORY_SYNC',
+        data: stockData.map(s => ({
+          sku: s.batch.product.sku,
+          batchNumber: s.batch.batchNumber,
+          quantity: s.quantity.toString(),
+          warehouseId: s.warehouseId,
+          binLabel: s.bin?.label,
+          costPrice: s.costPrice.toString()
+        }))
+      };
+
+      const response = await axios.post(
+        `${config.ERP_API_URL}/api/inventory/sync`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${config.ERP_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
       return {
         success: true,
-        synced: items.length,
-        timestamp: new Date()
+        direction: 'TO_ERP',
+        recordCount: stockData.length,
+        erpResponse: response.data
       };
-    } catch (error) {
-      throw new AppError(`ERP sync failed: ${error.message}`, 500);
-    }
-  }
+    } else if (direction === 'FROM_ERP') {
+      // Fetch data from ERP
+      const response = await axios.get(
+        `${config.ERP_API_URL}/api/purchase-orders/pending`,
+        {
+          headers: {
+            'Authorization': `Bearer ${config.ERP_API_KEY}`
+          }
+        }
+      );
 
-  /**
-   * Sync stock levels to ERP
-   */
-  async syncStockLevels(stockLevels) {
-    if (!this.enabled) {
-      return { success: true, synced: 0, message: 'Integration disabled' };
-    }
-
-    try {
-      console.log(`Would sync ${stockLevels.length} stock levels to ERP`);
-      
+      // Process incoming POs (implementation depends on ERP format)
       return {
         success: true,
-        synced: stockLevels.length,
-        timestamp: new Date()
+        direction: 'FROM_ERP',
+        data: response.data
       };
-    } catch (error) {
-      throw new AppError(`ERP stock sync failed: ${error.message}`, 500);
     }
+
+    throw new Error('Invalid sync direction. Use TO_ERP or FROM_ERP');
+  } catch (error) {
+    console.error('ERP sync failed:', error.message);
+    return {
+      success: false,
+      error: error.message,
+      direction
+    };
   }
+};
 
-  /**
-   * Pull purchase orders from ERP
-   */
-  async pullPurchaseOrders() {
-    if (!this.enabled) {
-      return [];
-    }
-
-    try {
-      // In production: await axios.get(`${this.endpoint}/purchase-orders`, ...);
-      console.log('Would pull POs from ERP');
-      return [];
-    } catch (error) {
-      throw new AppError(`ERP PO pull failed: ${error.message}`, 500);
-    }
-  }
-
-  /**
-   * Push sales orders to ERP
-   */
-  async pushSalesOrders(orders) {
-    if (!this.enabled) {
-      return { success: true, pushed: 0 };
-    }
-
-    try {
-      console.log(`Would push ${orders.length} sales orders to ERP`);
-      
-      return {
-        success: true,
-        pushed: orders.length,
-        timestamp: new Date()
-      };
-    } catch (error) {
-      throw new AppError(`ERP SO push failed: ${error.message}`, 500);
-    }
-  }
-
-  /**
-   * Sync financial transactions for accounting
-   */
-  async syncFinancialTransactions(transactions) {
-    if (!this.enabled) {
-      return { success: true, synced: 0 };
-    }
-
-    try {
-      console.log(`Would sync ${transactions.length} financial transactions to ERP`);
-      
-      return {
-        success: true,
-        synced: transactions.length,
-        timestamp: new Date()
-      };
-    } catch (error) {
-      throw new AppError(`ERP financial sync failed: ${error.message}`, 500);
-    }
-  }
-}
-
-module.exports = new ERPIntegrationService();
+module.exports = {
+  syncWithERP
+};
