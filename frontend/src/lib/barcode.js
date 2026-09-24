@@ -1,9 +1,21 @@
 /**
- * Barcode scanner wrapper using QuaggaJS
+ * Barcode scanner wrapper using QuaggaJS.
+ *
+ * Quagga is a heavy dependency (~300KB), so it is lazy-loaded on first use
+ * via a dynamic import and kept out of the main bundle. All exported
+ * functions await the same singleton loader.
  */
-import Quagga from 'quagga';
+let quaggaPromise = null;
 
-export const initBarcodeScanner = (config) => {
+const loadQuagga = () => {
+  if (!quaggaPromise) {
+    quaggaPromise = import('quagga').then((mod) => mod.default ?? mod);
+  }
+  return quaggaPromise;
+};
+
+export const initBarcodeScanner = async (config) => {
+  const Quagga = await loadQuagga();
   const defaultConfig = {
     inputStream: {
       name: 'Live',
@@ -39,23 +51,28 @@ export const initBarcodeScanner = (config) => {
   });
 };
 
-export const startBarcodeScanner = () => {
+export const startBarcodeScanner = async () => {
+  const Quagga = await loadQuagga();
   Quagga.start();
 };
 
-export const stopBarcodeScanner = () => {
+export const stopBarcodeScanner = async () => {
+  const Quagga = await loadQuagga();
   Quagga.stop();
 };
 
-export const onDetected = (callback) => {
+export const onDetected = async (callback) => {
+  const Quagga = await loadQuagga();
   Quagga.onDetected(callback);
 };
 
-export const offDetected = (callback) => {
+export const offDetected = async (callback) => {
+  const Quagga = await loadQuagga();
   Quagga.offDetected(callback);
 };
 
 export const decodeSingle = async (imageData) => {
+  const Quagga = await loadQuagga();
   return new Promise((resolve, reject) => {
     Quagga.decodeSingle(
       {
@@ -75,7 +92,8 @@ export const decodeSingle = async (imageData) => {
   });
 };
 
-export const cleanupScanner = () => {
+export const cleanupScanner = async () => {
+  const Quagga = await loadQuagga();
   Quagga.offDetected();
   Quagga.stop();
 };

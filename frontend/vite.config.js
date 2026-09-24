@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
@@ -23,6 +23,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
@@ -34,6 +35,32 @@ export default defineConfig({
       },
     },
   },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    server: { deps: { inline: ['msw'] } },
+    // give jsdom an absolute base URL so relative fetches (/api/v1/...) work
+    environmentOptions: { jsdom: { url: 'http://localhost:3000/' } },
+    setupFiles: ['./src/test/setup.js'],
+    css: false,
+    restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      include: [
+        'src/utils/**',
+        'src/store/slices/**',
+        'src/hooks/useOfflineMutation.js',
+        'src/lib/authRefresh.js',
+      ],
+      thresholds: {
+        // exit criteria: >=70% coverage on auth/offline/permission logic
+        'src/utils/permissions.js': { lines: 70 },
+        'src/store/slices/offlineQueueSlice.js': { lines: 70 },
+        'src/store/slices/authSlice.js': { lines: 70 },
+      },
+    },
+  },
   build: {
     outDir: 'dist',
     sourcemap: true,
@@ -42,7 +69,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           charts: ['recharts'],
-          utils: ['axios', 'date-fns', '@reduxjs/toolkit', 'react-redux'],
+          utils: ['date-fns', '@reduxjs/toolkit', 'react-redux'],
         },
       },
     },

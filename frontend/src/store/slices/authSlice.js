@@ -1,10 +1,30 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+// In httpOnly-cookie auth mode (VITE_AUTH_MODE=cookie) the JWT is never
+// exposed to JS and nothing auth-related is persisted to localStorage.
+export const AUTH_MODE = import.meta.env.VITE_AUTH_MODE || 'token';
+
+const readPersisted = (key) => {
+  if (AUTH_MODE === 'cookie') return null;
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
 const initialState = {
-  user: JSON.parse(localStorage.getItem('user')) || null,
-  token: localStorage.getItem('token') || null,
-  refreshToken: localStorage.getItem('refreshToken') || null,
-  isAuthenticated: !!localStorage.getItem('token'),
+  user: (() => {
+    const raw = readPersisted('user');
+    try {
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })(),
+  token: readPersisted('token'),
+  refreshToken: readPersisted('refreshToken'),
+  isAuthenticated: AUTH_MODE === 'cookie' ? false : !!readPersisted('token'),
   loading: false,
   error: null,
 };
@@ -22,14 +42,16 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.isAuthenticated = true;
       state.loading = false;
-      localStorage.setItem('token', action.payload.token);
-      localStorage.setItem('user', JSON.stringify(action.payload.user));
-      if (action.payload.refreshToken !== undefined) {
-        state.refreshToken = action.payload.refreshToken;
-        if (action.payload.refreshToken) {
-          localStorage.setItem('refreshToken', action.payload.refreshToken);
-        } else {
-          localStorage.removeItem('refreshToken');
+      if (AUTH_MODE !== 'cookie') {
+        localStorage.setItem('token', action.payload.token);
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
+        if (action.payload.refreshToken !== undefined) {
+          state.refreshToken = action.payload.refreshToken;
+          if (action.payload.refreshToken) {
+            localStorage.setItem('refreshToken', action.payload.refreshToken);
+          } else {
+            localStorage.removeItem('refreshToken');
+          }
         }
       }
     },
@@ -43,13 +65,17 @@ const authSlice = createSlice({
       state.refreshToken = null;
       state.isAuthenticated = false;
       state.error = null;
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('refreshToken');
+      if (AUTH_MODE !== 'cookie') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('refreshToken');
+      }
     },
     updateUser: (state, action) => {
       state.user = { ...state.user, ...action.payload };
-      localStorage.setItem('user', JSON.stringify(state.user));
+      if (AUTH_MODE !== 'cookie') {
+        localStorage.setItem('user', JSON.stringify(state.user));
+      }
     },
     clearError: (state) => {
       state.error = null;
