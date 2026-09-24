@@ -1,4 +1,3 @@
-import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Routes, Route, Navigate } from 'react-router-dom';
 

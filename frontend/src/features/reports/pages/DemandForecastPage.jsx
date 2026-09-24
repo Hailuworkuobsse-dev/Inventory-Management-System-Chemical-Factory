@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { usePermission } from '../../../hooks/usePermission';
 
 const DemandForecastPage = () => {
@@ -7,7 +7,7 @@ const DemandForecastPage = () => {
   const { hasPermission } = usePermission();
 
   // Mock data - replace with actual API call using RTK Query
-  const [forecastData, setForecastData] = useState([
+  const [forecastData] = useState([
     { id: 1, productName: 'Paracetamol 500mg', category: 'Analgesics', currentDemand: 10, forecastedDemand: 12, trend: 'increasing', confidence: 85 },
     { id: 2, productName: 'Amoxicillin 250mg', category: 'Antibiotics', currentDemand: 5, forecastedDemand: 6, trend: 'stable', confidence: 90 },
     { id: 3, productName: 'Ibuprofen 400mg', category: 'Analgesics', currentDemand: 8, forecastedDemand: 7, trend: 'decreasing', confidence: 78 },

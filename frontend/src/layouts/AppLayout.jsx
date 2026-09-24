@@ -1,11 +1,11 @@
-import React from 'react';
-import PropTypes from 'prop-types';
+import { Outlet } from 'react-router-dom';
 
 /**
  * AppLayout Component
- * Main application layout with sidebar and header
+ * Main application layout with sidebar and header.
+ * Used as a route parent element — child routes render via <Outlet />.
  */
-const AppLayout = ({ children }) => {
+const AppLayout = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar Placeholder */}
@@ -30,15 +30,13 @@ const AppLayout = ({ children }) => {
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="p-6">{children}</main>
+        {/* Page Content — child routes render here */}
+        <main className="p-6">
+          <Outlet />
+        </main>
       </div>
     </div>
   );
-};
-
-AppLayout.propTypes = {
-  children: PropTypes.node.isRequired,
 };
 
 export default AppLayout;

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import ExportButtons from '../components/ExportButtons';
 import ReportFilterBar from '../components/ReportFilterBar';
-import { TrendingUp, AlertTriangle } from 'lucide-react';
 
 export default function AbcAnalysisPage() {
   const [loading, setLoading] = useState(true);

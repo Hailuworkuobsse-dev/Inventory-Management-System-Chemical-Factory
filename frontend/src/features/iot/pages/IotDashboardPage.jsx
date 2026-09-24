@@ -1,9 +1,7 @@
-import React from 'react';
 import { LayoutDashboard, Thermometer, AlertTriangle, Wifi } from 'lucide-react';
 import TemperatureGraph from '../components/TemperatureGraph';
 import ExcursionAlertList from '../components/ExcursionAlertList';
 import SensorList from '../components/SensorList';
-import StockGauge from '../../../components/StockGauge';
 import StatusBadge from '../../../components/StatusBadge';
 
 const IotDashboardPage = () => {

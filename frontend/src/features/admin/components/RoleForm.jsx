@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Shield, CheckSquare, Save } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Shield } from 'lucide-react';
 import Button from '../../../components/Button';
 import Input from '../../../components/Input';
 import ConfirmDialog from '../../../components/ConfirmDialog';

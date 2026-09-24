@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { Plus, ClipboardList, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 
 const columns = [
   { key: 'workOrderNumber', label: 'WO #', sortable: true },

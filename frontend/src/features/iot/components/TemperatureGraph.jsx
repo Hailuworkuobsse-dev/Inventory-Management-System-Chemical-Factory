@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Thermometer, AlertTriangle, CheckCircle } from 'lucide-react';
 import StatusBadge from '../../../components/StatusBadge';

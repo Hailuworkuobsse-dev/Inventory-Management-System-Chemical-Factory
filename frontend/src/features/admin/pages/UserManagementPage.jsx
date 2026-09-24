@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Users, Plus, Search, Filter, MoreVertical, Edit2, Trash2, Shield, Mail, Phone } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Search, Edit2, Trash2, Shield, Mail, Phone } from 'lucide-react';
 import StatusBadge from '../../../components/StatusBadge';
 import Button from '../../../components/Button';
 import Input from '../../../components/Input';

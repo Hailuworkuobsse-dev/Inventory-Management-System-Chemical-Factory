@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Filter, Download } from 'lucide-react';
-import ReceiptForm from '../components/ReceiptForm';
+import { Plus, Download } from 'lucide-react';import ReceiptForm from '../components/ReceiptForm';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import Breadcrumb from '../../../components/Breadcrumb';
 
 const ReceiptListPage = () => {
-  const { user } = useSelector((state) => state.auth);
+  useSelector((state) => state.auth);
   const navigate = useNavigate();
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');

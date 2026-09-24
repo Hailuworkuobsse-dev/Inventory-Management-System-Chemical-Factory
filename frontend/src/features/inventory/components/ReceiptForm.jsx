@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 const ReceiptForm = ({ onSubmit, onCancel }) => {
   const [items, setItems] = useState([
     { sku: '', name: '', quantity: 0, unit: 'pcs', batchNumber: '', expiryDate: '' }
   ]);
 
-  const { register, handleSubmit, formState: { errors }, watch } = useForm();
+  const { register, handleSubmit, formState: { errors } } = useForm();
 
   const addItem = () => {
     setItems([...items, { sku: '', name: '', quantity: 0, unit: 'pcs', batchNumber: '', expiryDate: '' }]);

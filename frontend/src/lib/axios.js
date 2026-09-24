@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { refreshAuthToken, isAuthEndpoint } from './authRefresh';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -25,18 +26,31 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor - Handle errors
+// Response interceptor - refresh token on 401, then retry once; hard logout after
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+  async (error) => {
+    const originalRequest = error.config;
+    const status = error.response?.status;
+
+    // Expired/invalid access token → try refreshing once per request.
+    if (
+      status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !isAuthEndpoint(originalRequest.url)
+    ) {
+      originalRequest._retry = true;
+      const newToken = await refreshAuthToken(); // dispatches logout on failure
+      if (newToken) {
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(originalRequest);
+      }
       window.location.href = '/login';
+      return Promise.reject(error);
     }
 
-    if (error.response?.status === 403) {
+    if (status === 403) {
       // Forbidden
       window.location.href = '/unauthorized';
     }

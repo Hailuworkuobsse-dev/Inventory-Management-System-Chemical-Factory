@@ -1,8 +1,5 @@
-import React, { useState } from 'react';
-import { Wifi, WifiOff, Battery, Thermometer, Droplets, Activity, Search, Filter } from 'lucide-react';
-import StatusBadge from '../../../components/StatusBadge';
+import { useState } from 'react';import { Wifi, WifiOff, Battery, Thermometer, Droplets, Activity, Search } from 'lucide-react';import StatusBadge from '../../../components/StatusBadge';
 import Input from '../../../components/Input';
-import Button from '../../../components/Button';
 
 const SensorList = ({ sensors = [], onSelectSensor }) => {
   const [searchTerm, setSearchTerm] = useState('');

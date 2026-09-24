@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { ArrowLeftCircle, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 const columns = [
   { key: 'returnNumber', label: 'Return #', sortable: true },

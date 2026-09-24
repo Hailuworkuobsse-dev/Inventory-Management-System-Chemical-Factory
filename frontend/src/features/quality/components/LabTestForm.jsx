@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlaskConical, Plus, Save } from 'lucide-react';
+import { FlaskConical, Plus } from 'lucide-react';
 
 const LabTestForm = ({ batchId, onCancel, onSuccess }) => {
   const [formData, setFormData] = useState({

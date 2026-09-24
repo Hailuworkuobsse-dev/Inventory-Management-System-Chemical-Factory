@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Shield, Plus, Search, Edit2, Trash2, Users, CheckSquare } from 'lucide-react';
 import StatusBadge from '../../../components/StatusBadge';
 import Button from '../../../components/Button';

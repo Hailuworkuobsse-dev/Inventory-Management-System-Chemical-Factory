@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Settings, Save, Bell, Database, Lock, Globe, Palette, Server } from 'lucide-react';
 import Button from '../../../components/Button';
 import Input from '../../../components/Input';

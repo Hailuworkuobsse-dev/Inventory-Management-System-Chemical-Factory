@@ -17,7 +17,6 @@ export default function ShipmentTracker({ shipmentId }) {
   });
 
   const currentStep = tracking.events.findIndex(e => !e.completed);
-  const totalSteps = tracking.events.length;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border p-6">

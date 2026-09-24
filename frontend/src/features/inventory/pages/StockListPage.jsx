@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 
-import { Package, Plus, Filter, Download } from 'lucide-react';
-import StockTable from '../components/StockTable';
-import DataTable from '../../../components/DataTable';
-import StatusBadge from '../../../components/StatusBadge';
+import { Plus, Filter, Download } from 'lucide-react';import StockTable from '../components/StockTable';
 
 const StockListPage = () => {
-  const { user } = useSelector((state) => state.auth);
+  useSelector((state) => state.auth);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 

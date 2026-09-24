@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Filter } from 'lucide-react';
+import { Filter } from 'lucide-react';
 
 export default function ReportFilterBar({ onFilterChange }) {
   const [dateRange, setDateRange] = useState('last30');

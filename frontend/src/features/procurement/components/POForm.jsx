@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { Plus, X, Package, Calendar, DollarSign } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 
 export default function POForm({ onSubmit, onCancel }) {
   const [loading, setLoading] = useState(false);

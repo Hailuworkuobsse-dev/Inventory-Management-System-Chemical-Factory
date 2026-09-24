@@ -61,7 +61,7 @@ export const inventoryApi = apiSlice.injectEndpoints({
 
     // Get inventory history
     getInventoryHistory: builder.query({
-      query: ({ id, params }) => `/inventory/${id}/history`,
+      query: ({ id }) => `/inventory/${id}/history`,
       providesTags: ['Inventory'],
     }),
 
