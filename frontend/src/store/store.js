@@ -1,4 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
+import { setupListeners } from '@reduxjs/toolkit/query';
 import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 import offlineQueueReducer from './slices/offlineQueueSlice';
@@ -19,15 +20,12 @@ export const store = configureStore({
         // Ignore these field paths in state
         ignoredPaths: ['auth.user.avatar'],
       },
-    })
-      .concat(apiSlice.middleware)
-      // Give the offline sync worker access to the RTK Query api util
-      // (extra.invapi) so synced mutations can invalidate caches.
-      .concat((api) => (next) => (action) => {
-        api.extra.invapi = apiSlice;
-        return next(action);
-      }),
+    }, thunk: { extraArgument: { invapi: apiSlice } })
+      .concat(apiSlice.middleware),
   devTools: import.meta.env.DEV,
 });
+
+// RTK Query refetch-on-focus/reconnect listeners (no-op outside browsers)
+setupListeners(store.dispatch);
 
 export default store;

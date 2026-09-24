@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import EmptyState from './EmptyState';
 
 /**
  * DataTable Component
@@ -39,9 +40,21 @@ const DataTable = ({
   };
 
   if (loading) {
+    // Loading skeleton sized to the table's columns
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      <div className="overflow-x-auto bg-white rounded-lg shadow animate-pulse" aria-busy="true">
+        <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex gap-6">
+          {columns.map((c) => (
+            <div key={c.key} className="h-3 w-24 bg-gray-200 rounded" />
+          ))}
+        </div>
+        {[...Array(5)].map((_, rowIdx) => (
+          <div key={rowIdx} className="px-6 py-4 border-b border-gray-100 flex gap-6">
+            {columns.map((c) => (
+              <div key={c.key} className="h-3 flex-1 max-w-[10rem] bg-gray-100 rounded" />
+            ))}
+          </div>
+        ))}
       </div>
     );
   }
@@ -56,9 +69,10 @@ const DataTable = ({
 
   if (!data || data.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        {emptyMessage}
-      </div>
+      <EmptyState
+        title={typeof emptyMessage === 'string' ? emptyMessage : 'No data available'}
+        description="Data will appear here once records exist."
+      />
     );
   }
 

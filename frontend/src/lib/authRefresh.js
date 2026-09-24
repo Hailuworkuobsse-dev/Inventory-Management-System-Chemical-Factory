@@ -22,8 +22,9 @@ export const refreshAuthToken = () => {
     const refreshToken = state.auth?.refreshToken;
     const user = state.auth?.user;
     const baseUrl = import.meta.env.VITE_API_URL || '/api';
+    const cookieMode = import.meta.env.VITE_AUTH_MODE === 'cookie';
 
-    if (!refreshToken) {
+    if (!refreshToken && !cookieMode) {
       store.dispatch({ type: 'auth/logout' });
       return null;
     }
@@ -32,15 +33,17 @@ export const refreshAuthToken = () => {
       const res = await fetch(`${baseUrl}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
+        // cookie mode: the refresh token rides in an httpOnly cookie
+        credentials: cookieMode ? 'include' : 'same-origin',
+        body: JSON.stringify(cookieMode ? {} : { refreshToken }),
       });
       if (!res.ok) throw new Error(`Refresh failed (${res.status})`);
       const data = await res.json();
       const token = data.token || data.accessToken;
-      if (!token) throw new Error('Refresh response missing token');
+      if (!token && !cookieMode) throw new Error('Refresh response missing token');
       store.dispatch({
         type: 'auth/loginSuccess',
-        payload: { user: data.user ?? user, token, refreshToken: data.refreshToken ?? refreshToken },
+        payload: { user: data.user ?? user, token: token ?? null, refreshToken: data.refreshToken ?? refreshToken },
       });
       return token;
     } catch {

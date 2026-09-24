@@ -62,9 +62,10 @@ export const {
 /* --------------------------- async thunks ------------------------------ */
 
 import { createAsyncThunk } from '@reduxjs/toolkit';
+import toast from 'react-hot-toast';
 import { refreshAuthToken } from '../../lib/authRefresh';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 export const loadQueue = createAsyncThunk('offlineQueue/load', async () => {
   const db = await openDB();
@@ -152,7 +153,14 @@ export const syncQueue = createAsyncThunk(
           dispatch(queueItemRemoved(item.id));
           result.synced += 1;
           if (item.endpointName && extra?.invapi) {
-            dispatch(extra.invapi.util.invalidateTags([item.endpointName]));
+            dispatch(
+              extra.invapi.util.invalidateTags([
+                item.endpointName,
+                // also drop any cached GET results for the mutated path so the
+                // UI refetches authoritative server state after a sync
+                { type: 'InvalidatedPath', path: item.url },
+              ])
+            );
           }
         } else if (res.status === 409) {
           await addToStore(QUEUE_STORE, {
@@ -184,6 +192,17 @@ export const syncQueue = createAsyncThunk(
         await addToStore(QUEUE_STORE, { ...item, retryCount, status });
         dispatch(queueItemUpdated({ id: item.id, retryCount, status }));
       }
+    }
+
+    // Surface sync outcomes instead of silent success/failure
+    if (result.synced > 0) {
+      toast.success(`Synced ${result.synced} queued operation${result.synced > 1 ? 's' : ''}`);
+    }
+    if (result.conflicts > 0) {
+      toast.error(`${result.conflicts} operation${result.conflicts > 1 ? 's' : ''} need attention (conflict)`);
+    }
+    if (result.failed > 0) {
+      toast.error(`${result.failed} operation${result.failed > 1 ? 's' : ''} failed — open the sync panel`);
     }
 
     return result;
