@@ -1,4 +1,3 @@
-import React from 'react';
 import { Navigate } from 'react-router-dom';
 import usePermission from '../hooks/usePermission';
 
@@ -23,15 +22,5 @@ const RoleGuard = ({ allowedRoles, children }) => {
   return children;
 };
 
-// HOC for easier usage
-export const withRoleGuard = (WrappedComponent, allowedRoles) => {
-  return function WithRoleGuard(props) {
-    return (
-      <RoleGuard allowedRoles={allowedRoles}>
-        <WrappedComponent {...props} />
-      </RoleGuard>
-    );
-  };
-};
 
 export default RoleGuard;

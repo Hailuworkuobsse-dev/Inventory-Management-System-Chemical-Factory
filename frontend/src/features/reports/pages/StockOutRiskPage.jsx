@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { usePermission } from '../../hooks/usePermission';
+import { useState } from 'react';
+import { usePermission } from '../../../hooks/usePermission';
 
 const StockOutRiskPage = () => {
   const [filterType, setFilterType] = useState('all');
   const { hasPermission } = usePermission();
 
   // Mock data - replace with actual API call using RTK Query
-  const [stockData, setStockData] = useState([
+  const [stockData] = useState([
     { id: 1, productName: 'Paracetamol 500mg', currentStock: 15, minStock: 50, avgDailySales: 10, daysUntilStockout: 1.5, riskLevel: 'critical' },
     { id: 2, productName: 'Amoxicillin 250mg', currentStock: 30, minStock: 40, avgDailySales: 5, daysUntilStockout: 6, riskLevel: 'high' },
     { id: 3, productName: 'Ibuprofen 400mg', currentStock: 80, minStock: 60, avgDailySales: 8, daysUntilStockout: 10, riskLevel: 'medium' },

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CheckSquare, Square, ChevronRight, ChevronDown, Shield, Users, Package, FileText, Settings, TrendingUp, ClipboardCheck, Truck, DollarSign } from 'lucide-react';
+import { useState } from 'react';
+import { CheckSquare, Square, ChevronRight, ChevronDown, Shield, Package, Settings, TrendingUp, ClipboardCheck, Truck, DollarSign } from 'lucide-react';
 
 const permissionCategories = [
   {

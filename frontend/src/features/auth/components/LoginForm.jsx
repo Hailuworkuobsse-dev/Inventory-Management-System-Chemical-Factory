@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Package } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 
 const LoginForm = () => {
-  const navigate = useNavigate();
   const { login, loading, error } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');

@@ -1,4 +1,4 @@
-import { ArrowUpRight, ArrowDownRight, Package, ShoppingCart, Truck, AlertTriangle } from 'lucide-react';
+import { Package, ShoppingCart, Truck, AlertTriangle } from 'lucide-react';
 
 const RecentTransactions = () => {
   // Mock data - will be replaced with API data

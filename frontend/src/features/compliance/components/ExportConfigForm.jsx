@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Download, Upload, AlertTriangle } from 'lucide-react';
+import { Settings, AlertTriangle } from 'lucide-react';
 
 export default function ExportConfigForm({ onSave, onCancel }) {
   const [loading, setLoading] = useState(false);

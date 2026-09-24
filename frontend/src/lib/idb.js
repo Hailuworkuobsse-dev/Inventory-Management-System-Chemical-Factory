@@ -57,7 +57,7 @@ export const addToStore = async (storeName, data) => {
     const store = transaction.objectStore(storeName);
     const request = store.put(data);
 
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => resolve(request.result ?? data.id);
     request.onerror = () => reject(new Error(`Failed to add to ${storeName}`));
   });
 };
@@ -69,7 +69,7 @@ export const getAllFromStore = async (storeName) => {
     const store = transaction.objectStore(storeName);
     const request = store.getAll();
 
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => resolve(request.result ?? data.id);
     request.onerror = () => reject(new Error(`Failed to get all from ${storeName}`));
   });
 };
@@ -81,7 +81,7 @@ export const getFromStore = async (storeName, key) => {
     const store = transaction.objectStore(storeName);
     const request = store.get(key);
 
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => resolve(request.result ?? data.id);
     request.onerror = () => reject(new Error(`Failed to get from ${storeName}`));
   });
 };

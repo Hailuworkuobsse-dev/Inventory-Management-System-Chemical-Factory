@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { usePermission } from '../../hooks/usePermission';
+import { useState } from 'react';
+import { usePermission } from '../../../hooks/usePermission';
 
 const ExpiryRiskPage = () => {
   const [dateRange, setDateRange] = useState({ start: 30, end: 90 });
   const { hasPermission } = usePermission();
 
   // Mock data - replace with actual API call using RTK Query
-  const [expiryData, setExpiryData] = useState([
+  const [expiryData] = useState([
     { id: 1, productName: 'Paracetamol 500mg', batchNo: 'B001', expiryDate: '2024-06-15', quantity: 100, riskLevel: 'high' },
     { id: 2, productName: 'Amoxicillin 250mg', batchNo: 'B002', expiryDate: '2024-07-20', quantity: 50, riskLevel: 'medium' },
     { id: 3, productName: 'Ibuprofen 400mg', batchNo: 'B003', expiryDate: '2024-08-10', quantity: 200, riskLevel: 'low' },

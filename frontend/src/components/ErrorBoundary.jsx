@@ -15,7 +15,7 @@ class ErrorBoundary extends React.Component {
     };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(_error) {
     return { hasError: true };
   }
 
@@ -66,7 +66,7 @@ class ErrorBoundary extends React.Component {
             </p>
 
             {/* Error Details (Development Only) */}
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <div className="mb-6 p-4 bg-gray-50 rounded-lg overflow-auto max-h-48">
                 <pre className="text-xs text-danger-600 whitespace-pre-wrap">
                   {this.state.error.toString()}

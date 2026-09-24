@@ -36,6 +36,7 @@ export const useAuth = () => {
         const data = {
           user: response.user ?? response,
           token: response.token || response.accessToken || '',
+          refreshToken: response.refreshToken || '',
         };
         if (!data.user) throw new Error('Invalid login response');
         dispatch(loginSuccess(data));
@@ -64,7 +65,13 @@ export const useAuth = () => {
   const refreshToken = useCallback(async () => {
     try {
       const response = await refreshTokenRequest().unwrap();
-      dispatch(loginSuccess({ token: response.token || response.accessToken, user }));
+      dispatch(
+        loginSuccess({
+          token: response.token || response.accessToken,
+          user: response.user ?? user,
+          refreshToken: response.refreshToken, // undefined → keep existing
+        })
+      );
       return response;
     } catch (err) {
       dispatch(logoutAction());

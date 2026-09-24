@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
 import StatusBadge from '../../../components/StatusBadge';
 
 const BatchTable = ({ batches = [], onRowClick }) => {

@@ -1,9 +1,4 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { 
-  useLazyQuery, 
-  useMutation, 
-  useQuery 
-} from '@reduxjs/toolkit/query/react';
 
 // Typed hooks for Redux
 export const useAppSelector = useSelector;

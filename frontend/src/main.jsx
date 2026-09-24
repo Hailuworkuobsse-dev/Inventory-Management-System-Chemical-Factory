@@ -1,9 +1,10 @@
-import React from 'react';
 import { Provider } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 import AppRoutes from './routes';
 import { store } from './store/store';
 import ErrorBoundary from './components/ErrorBoundary';
+import SyncStatusBadge from './components/SyncStatusBadge';
+import useOfflineSync from './hooks/useOfflineSync';
 import './styles/globals.css';
 
 // Register service worker for PWA
@@ -21,10 +22,14 @@ if ('serviceWorker' in navigator) {
 }
 
 function Main() {
+  useOfflineSync();
   return (
     <ErrorBoundary>
       <Provider store={store}>
         <AppRoutes />
+        <div className="fixed bottom-4 right-4 z-50">
+          <SyncStatusBadge />
+        </div>
         <Toaster
           position="top-right"
           toastOptions={{

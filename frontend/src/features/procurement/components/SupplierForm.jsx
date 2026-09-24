@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Building2, Plus, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 
 export default function SupplierForm({ initialData, onSubmit, onCancel }) {
   const [loading, setLoading] = useState(false);

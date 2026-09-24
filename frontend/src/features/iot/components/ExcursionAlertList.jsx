@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { AlertTriangle, Bell, Clock, CheckCircle, XCircle, Filter } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, Bell, Clock, CheckCircle } from 'lucide-react';
 import StatusBadge from '../../../components/StatusBadge';
 import Button from '../../../components/Button';
 

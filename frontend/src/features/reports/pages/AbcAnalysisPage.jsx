@@ -1,25 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useGetAbcAnalysisQuery } from '../../../services/reportingEndpoints';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import ExportButtons from '../components/ExportButtons';
 import ReportFilterBar from '../components/ReportFilterBar';
-import { TrendingUp, AlertTriangle } from 'lucide-react';
 
 export default function AbcAnalysisPage() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState([]);
-
-  useEffect(() => {
-    setTimeout(() => {
-      setData([
-        { sku: 'SKU-001', product: 'Premium Arabica Beans', category: 'A', annualValue: 125000, percentage: 45 },
-        { sku: 'SKU-002', product: 'Espresso Blend', category: 'A', annualValue: 98000, percentage: 35 },
-        { sku: 'SKU-003', product: 'Packaging Bags', category: 'B', annualValue: 45000, percentage: 16 },
-        { sku: 'SKU-004', product: 'Labels', category: 'B', annualValue: 22000, percentage: 8 },
-        { sku: 'SKU-005', product: 'Cleaning Supplies', category: 'C', annualValue: 5000, percentage: 2 },
-      ]);
-      setLoading(false);
-    }, 500);
-  }, []);
+  const { data: response, isLoading: loading, isError, refetch } = useGetAbcAnalysisQuery();
+  const raw = Array.isArray(response) ? response : response?.data || response?.items || [];
+  const data = raw.map((r) => ({
+    sku: r.sku || r.product?.sku || '-',
+    product: r.product || r.productName || r.product?.name || '-',
+    category: r.category || r.abcClass || '-',
+    annualValue: Number(r.annualValue ?? r.value ?? 0),
+    percentage: Number(r.percentage ?? r.share ?? 0),
+  }));
 
   return (
     <>

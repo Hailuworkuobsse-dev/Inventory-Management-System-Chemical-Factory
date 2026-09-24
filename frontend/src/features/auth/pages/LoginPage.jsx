@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { AlertCircle, Home, Lock } from 'lucide-react';
+import { Home } from 'lucide-react';
 import LoginForm from '../components/LoginForm';
 
 const LoginPage = () => {

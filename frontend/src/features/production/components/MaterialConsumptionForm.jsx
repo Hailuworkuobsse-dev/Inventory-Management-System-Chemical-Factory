@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { Plus, X, Package } from 'lucide-react';
-
+import { X, Package } from 'lucide-react';
 export default function MaterialConsumptionForm({ workOrderId, onSubmit, onCancel }) {
   const [loading, setLoading] = useState(false);
   
@@ -15,7 +14,7 @@ export default function MaterialConsumptionForm({ workOrderId, onSubmit, onCance
     },
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'materials' });
+  const { fields, remove } = useFieldArray({ control, name: 'materials' });
   const materials = watch('materials');
 
   const submitHandler = async (data) => {

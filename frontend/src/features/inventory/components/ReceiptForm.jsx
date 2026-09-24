@@ -1,35 +1,58 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, Plus, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Plus, Trash2 } from 'lucide-react';
+import { useGetSuppliersQuery } from '../../../services/procurementEndpoints';
+import { useGetStockQuery } from '../../../services/inventoryEndpoints';
 
+const emptyItem = () => ({ sku: '', name: '', quantity: 0, unit: 'pcs', batchNumber: '', expiryDate: '' });
+
+/**
+ * ReceiptForm — supplier & warehouse dropdowns are now server-driven
+ * (RTK Query), and SKU entry supports barcode scan lookup against live stock.
+ */
 const ReceiptForm = ({ onSubmit, onCancel }) => {
-  const [items, setItems] = useState([
-    { sku: '', name: '', quantity: 0, unit: 'pcs', batchNumber: '', expiryDate: '' }
-  ]);
+  const [items, setItems] = useState([emptyItem()]);
+  const { register, handleSubmit, formState: { errors } } = useForm();
 
-  const { register, handleSubmit, formState: { errors }, watch } = useForm();
+  const { data: suppliers = [], isLoading: suppliersLoading } = useGetSuppliersQuery();
+  const { data: stockResponse } = useGetStockQuery(undefined, { skip: items.every((i) => !i.sku) });
 
-  const addItem = () => {
-    setItems([...items, { sku: '', name: '', quantity: 0, unit: 'pcs', batchNumber: '', expiryDate: '' }]);
-  };
+  // Server stock rows keyed by SKU for scan/type-ahead resolution
+  const stockRows = Array.isArray(stockResponse) ? stockResponse : stockResponse?.data || [];
 
+  const addItem = () => setItems([...items, emptyItem()]);
   const removeItem = (index) => {
-    if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
-    }
+    if (items.length > 1) setItems(items.filter((_, i) => i !== index));
   };
-
   const updateItem = (index, field, value) => {
     const updated = [...items];
     updated[index][field] = value;
+    if (field === 'sku') {
+      const match = stockRows.find(
+        (row) => row.product?.sku === value || row.sku === value
+      );
+      if (match) {
+        updated[index].name = match.product?.name || match.name || '';
+      }
+    }
     setItems(updated);
   };
 
+  const handleScan = (index, code) => {
+    const match = stockRows.find(
+      (row) => row.product?.barcode === code || row.barcode === code || row.product?.sku === code || row.sku === code
+    );
+    if (match) {
+      updateItem(index, 'sku', match.product?.sku || match.sku || code);
+      toast.success(`Matched ${match.product?.name || match.name || code}`);
+    } else {
+      toast.error(`No product found for ${code}`);
+    }
+  };
+
   const handleFormSubmit = (data) => {
-    onSubmit({
-      ...data,
-      items,
-    });
+    onSubmit({ ...data, items });
   };
 
   return (
@@ -47,9 +70,12 @@ const ReceiptForm = ({ onSubmit, onCancel }) => {
             {...register('supplierId', { required: 'Supplier is required' })}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           >
-            <option value="">Select Supplier</option>
-            <option value="1">ABC Suppliers Ltd</option>
-            <option value="2">XYZ Manufacturing</option>
+            <option value="">{suppliersLoading ? 'Loading suppliers…' : 'Select Supplier'}</option>
+            {suppliers.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
           </select>
           {errors.supplierId && (
             <p className="mt-1 text-sm text-red-600">{errors.supplierId.message}</p>
@@ -73,8 +99,14 @@ const ReceiptForm = ({ onSubmit, onCancel }) => {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           >
             <option value="">Select Warehouse</option>
-            <option value="1">Main Warehouse</option>
-            <option value="2">Secondary Warehouse</option>
+            {[...new Set(stockRows.map((r) => r.warehouse?.id).filter(Boolean))].map((wid) => {
+              const wh = stockRows.find((r) => r.warehouse?.id === wid)?.warehouse;
+              return (
+                <option key={wid} value={wid}>
+                  {wh?.name || `Warehouse ${wid}`}
+                </option>
+              );
+            })}
           </select>
           {errors.warehouseId && (
             <p className="mt-1 text-sm text-red-600">{errors.warehouseId.message}</p>
@@ -129,8 +161,14 @@ const ReceiptForm = ({ onSubmit, onCancel }) => {
                     type="text"
                     value={item.sku}
                     onChange={(e) => updateItem(index, 'sku', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleScan(index, e.currentTarget.value.trim());
+                      }
+                    }}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    placeholder="Scan or enter SKU"
+                    placeholder="Scan barcode or enter SKU"
                   />
                 </div>
 

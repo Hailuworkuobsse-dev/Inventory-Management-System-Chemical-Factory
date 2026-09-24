@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useGetBomsQuery } from '../../../services/productionEndpoints';
 import { useNavigate } from 'react-router-dom';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
@@ -17,19 +18,17 @@ const columns = [
 export default function BomListPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [boms, setBoms] = useState([]);
+  const { data: response, isLoading: loading, isError, refetch } = useGetBomsQuery();
+  const raw = Array.isArray(response) ? response : response?.data || [];
+  const boms = raw.map((b) => ({
+    id: b.id,
+    bomCode: b.code || b.bomCode,
+    productName: b.product?.name || b.name || '-',
+    version: b.version || '1.0',
+    materialCount: b.items?.length ?? b.materialCount ?? 0,
+    status: b.status || (b.isActive === false ? 'draft' : 'active'),
+  }));
   const [searchTerm, setSearchTerm] = useState('');
-
-  useEffect(() => {
-    setTimeout(() => {
-      setBoms([
-        { id: 1, bomCode: 'BOM-001', productName: 'Premium Coffee Blend', version: '2.1', materialCount: 5, status: 'active' },
-        { id: 2, bomCode: 'BOM-002', productName: 'Espresso Pack 250g', version: '1.0', materialCount: 3, status: 'active' },
-        { id: 3, bomCode: 'BOM-003', productName: 'Decaf Selection', version: '1.5', materialCount: 4, status: 'draft' },
-      ]);
-      setLoading(false);
-    }, 500);
-  }, []);
 
   const filteredBoms = boms.filter(b => 
     b.bomCode.toLowerCase().includes(searchTerm.toLowerCase()) ||

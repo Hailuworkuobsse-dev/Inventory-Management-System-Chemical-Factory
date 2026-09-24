@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Users, Plus, Search, Filter, MoreVertical, Edit2, Trash2, Shield, Mail, Phone } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Search, Edit2, Trash2, Shield, Mail, Phone } from 'lucide-react';
 import StatusBadge from '../../../components/StatusBadge';
 import Button from '../../../components/Button';
 import Input from '../../../components/Input';
@@ -16,14 +16,19 @@ const UserManagementPage = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
 
-  const mockUsers = [
-    { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin', status: 'active', department: 'Warehouse', lastActive: new Date() },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'Manager', status: 'active', department: 'Quality', lastActive: new Date(Date.now() - 3600000) },
-    { id: 3, name: 'Bob Wilson', email: 'bob@example.com', role: 'Operator', status: 'inactive', department: 'Inventory', lastActive: new Date(Date.now() - 86400000) },
-    { id: 4, name: 'Alice Brown', email: 'alice@example.com', role: 'Viewer', status: 'active', department: 'Sales', lastActive: new Date() },
-  ];
+  const { data: response, isLoading: usersLoading, isError, refetch } = useGetUsersQuery();
+  const rawUsers = Array.isArray(response) ? response : response?.data || [];
+  const users = rawUsers.map((u) => ({
+    id: u.id,
+    name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim(),
+    email: u.email,
+    role: u.role?.name || u.role || 'Viewer',
+    status: u.isActive === false ? 'inactive' : 'active',
+    department: u.department || u.warehouse?.name || '-',
+    lastActive: u.lastLoginAt ? new Date(u.lastLoginAt) : new Date(),
+  }));
 
-  const filteredUsers = mockUsers.filter(user => {
+  const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role.toLowerCase() === filterRole;

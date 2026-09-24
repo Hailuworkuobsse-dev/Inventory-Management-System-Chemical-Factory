@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { TrendingUp, TrendingDown, DollarSign, RefreshCw } from 'lucide-react';
+import { TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 
 const columns = [
   { key: 'currency', label: 'Currency', sortable: true },
