@@ -1,151 +1,84 @@
 const authService = require('./auth.service');
 const { successResponse, errorResponse } = require('../../utils/responseHandler');
-const validate = require('../../middleware/validate');
+const AppError = require('../../utils/appError');
 
-// Validation schemas (using simple validation for now - can be replaced with Joi/Zod)
-const loginSchema = async (data) => {
-  const errors = [];
-  
-  if (!data.email || typeof data.email !== 'string') {
-    errors.push({ message: 'Email is required', path: ['email'] });
-  } else if (!/\S+@\S+\.\S+/.test(data.email)) {
-    errors.push({ message: 'Invalid email format', path: ['email'] });
-  }
-  
-  if (!data.password || typeof data.password !== 'string') {
-    errors.push({ message: 'Password is required', path: ['password'] });
-  } else if (data.password.length < 6) {
-    errors.push({ message: 'Password must be at least 6 characters', path: ['password'] });
-  }
-  
-  return {
-    error: errors.length > 0 ? { details: errors } : null,
-    value: { email: data.email?.toLowerCase(), password: data.password },
-  };
-};
-
-const refreshTokenSchema = async (data) => {
-  if (!data.refreshToken) {
-    return {
-      error: { details: [{ message: 'Refresh token is required', path: ['refreshToken'] }] },
-      value: {},
-    };
-  }
-  return { error: null, value: { refreshToken: data.refreshToken } };
-};
-
-/**
- * Auth Controller
- * Handles authentication-related HTTP requests
- */
-class AuthController {
-  /**
-   * POST /api/v1/auth/login
-   * User login endpoint
-   */
+const authController = {
   async login(req, res, next) {
     try {
-      const { email, password } = req.validatedBody || req.body;
+      const { email, password } = req.body;
       
+      if (!email || !password) {
+        throw new AppError('Email and password are required', 400, 'VALIDATION_ERROR');
+      }
+
       const result = await authService.login(email, password);
       
-      // Set refresh token in httpOnly cookie
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
-
-      // Return access token and user info (exclude refresh token from body)
-      return successResponse(res, {
-        accessToken: result.accessToken,
-        user: result.user,
-      }, 'Login successful');
+      return successResponse(res, result, 'Login successful', 200);
     } catch (error) {
       next(error);
     }
-  }
+  },
 
-  /**
-   * POST /api/v1/auth/refresh
-   * Refresh access token using refresh token
-   */
   async refreshToken(req, res, next) {
     try {
-      // Get refresh token from cookie or body
-      const token = req.cookies?.refreshToken || req.body.refreshToken;
+      const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
       
-      if (!token) {
-        return errorResponse(res, 'Refresh token is required', 'MISSING_TOKEN', 400);
+      if (!refreshToken) {
+        throw new AppError('Refresh token required', 400, 'VALIDATION_ERROR');
       }
 
-      const result = await authService.refreshToken(token);
-      
-      // Set new refresh token in cookie
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
-
-      return successResponse(res, {
-        accessToken: result.accessToken,
-      }, 'Token refreshed successfully');
+      const result = await authService.refreshToken(refreshToken);
+      return successResponse(res, result, 'Token refreshed successfully');
     } catch (error) {
       next(error);
     }
-  }
+  },
 
-  /**
-   * POST /api/v1/auth/logout
-   * Logout user and invalidate refresh token
-   */
   async logout(req, res, next) {
     try {
-      // Get refresh token from cookie
-      const token = req.cookies?.refreshToken;
+      const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
       
-      if (token) {
-        await authService.logout(token);
+      if (refreshToken) {
+        await authService.logout(refreshToken);
       }
 
-      // Clear refresh token cookie
-      res.clearCookie('refreshToken');
+      // Clear cookie
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict'
+      });
 
-      return successResponse(res, null, 'Logout successful');
+      return successResponse(res, null, 'Logged out successfully');
     } catch (error) {
       next(error);
     }
-  }
+  },
 
-  /**
-   * POST /api/v1/auth/change-password
-   * Change user password
-   */
   async changePassword(req, res, next) {
     try {
       const userId = req.user.id;
       const { currentPassword, newPassword } = req.body;
 
       if (!currentPassword || !newPassword) {
-        return errorResponse(res, 'Current password and new password are required', 'MISSING_FIELDS', 400);
+        throw new AppError('Current password and new password are required', 400, 'VALIDATION_ERROR');
       }
 
-      if (newPassword.length < 6) {
-        return errorResponse(res, 'New password must be at least 6 characters', 'WEAK_PASSWORD', 400);
-      }
+      const result = await authService.changePassword(userId, currentPassword, newPassword);
+      return successResponse(res, result, 'Password changed successfully');
+    } catch (error) {
+      next(error);
+    }
+  },
 
-      await authService.changePassword(userId, currentPassword, newPassword);
-
-      return successResponse(res, null, 'Password changed successfully. Please login again.');
+  async getProfile(req, res, next) {
+    try {
+      const user = req.user;
+      return successResponse(res, { user }, 'Profile retrieved successfully');
     } catch (error) {
       next(error);
     }
   }
-}
+};
 
-module.exports = new AuthController();
-module.exports.loginSchema = loginSchema;
-module.exports.refreshTokenSchema = refreshTokenSchema;
+module.exports = authController;

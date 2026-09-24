@@ -1,20 +1,39 @@
+```
 # Dependencies
 node_modules/
 
-# Build output
-frontend/dist/
-dist/
+# Logs and temp files
+*.log
+*.tmp
 
 # Environment
 .env
 .env.local
-.env.*.local
+*.env.*
 
-# Logs
-*.log
-npm-debug.log*
-
-# Editor/OS
-.DS_Store
+# Editors
 .vscode/
 .idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build outputs
+dist/
+build/
+coverage/
+htmlcov/
+*.egg-info/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Testing
+.nyc_output/
+.coverage
+coverage.xml
+```

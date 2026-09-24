@@ -4,9 +4,7 @@
   "tabWidth": 2,
   "trailingComma": "none",
   "printWidth": 100,
-  "useTabs": false,
   "bracketSpacing": true,
   "arrowParens": "always",
-  "endOfLine": "lf",
-  "proseWrap": "preserve"
+  "endOfLine": "lf"
 }

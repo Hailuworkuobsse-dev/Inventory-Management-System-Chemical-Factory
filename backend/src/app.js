@@ -1,66 +1,91 @@
 const express = require('express');
-const cors = require('./config/corsOptions');
+const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const authRoutes = require('./modules/auth/auth.routes');
+const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
+
+const config = require('./config');
+const corsOptions = require('./config/corsOptions');
 const errorHandler = require('./middleware/errorHandler');
-const AppError = require('./utils/appError');
+const requestLogger = require('./middleware/requestLogger');
+
+// Import routes
+const authRoutes = require('./modules/auth/auth.routes');
+const inventoryRoutes = require('./modules/inventory/inventory.routes');
+const usersRoutes = require('./modules/users/users.routes');
+const procurementRoutes = require('./modules/procurement/procurement.routes');
+const qualityRoutes = require('./modules/quality/quality.routes');
+const productionRoutes = require('./modules/production/production.routes');
+const salesRoutes = require('./modules/sales/sales.routes');
+const complianceRoutes = require('./modules/compliance/compliance.routes');
+const iotRoutes = require('./modules/iot/iot.routes');
+const reportingRoutes = require('./modules/reporting/reporting.routes');
+const alertsRoutes = require('./modules/alerts/alerts.routes');
 
 const app = express();
 
+// Trust proxy for rate limiting behind reverse proxy
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
+app.use(cors(corsOptions));
 
-// CORS
-app.use(cors);
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: config.RATE_LIMIT_WINDOW_MS,
+  max: config.RATE_LIMIT_MAX_REQUESTS,
+  message: {
+    success: false,
+    data: null,
+    message: 'Too many requests, please try again later',
+    errors: [{ code: 'RATE_LIMIT_EXCEEDED', description: 'Too many requests' }]
+  }
+});
+app.use('/api/', limiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Cookie parser (for refresh tokens)
-const cookieParser = require('cookie-parser');
 app.use(cookieParser());
 
 // Request logging
-if (process.env.NODE_ENV !== 'test') {
-  app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
-}
+app.use(requestLogger);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
-    data: { status: 'healthy', timestamp: new Date().toISOString() },
+    data: { status: 'OK', timestamp: new Date().toISOString() },
     message: 'API is running',
-    errors: null,
+    errors: null
   });
 });
 
-// API Routes - All module routes organized by feature
+// API Routes
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/users', require('./modules/users/users.routes'));
-app.use('/api/v1/inventory', require('./modules/inventory/inventory.routes'));
-app.use('/api/v1/batches', require('./modules/quality/quality.routes'));
-app.use('/api/v1/purchase-orders', require('./modules/procurement/procurement.routes'));
-app.use('/api/v1/sales-orders', require('./modules/sales/sales.routes'));
-app.use('/api/v1/production', require('./modules/production/production.routes'));
-app.use('/api/v1/reporting', require('./modules/reporting/reporting.routes'));
-app.use('/api/v1/alerts', require('./modules/alerts/alerts.routes'));
-app.use('/api/v1/compliance', require('./modules/compliance/compliance.routes'));
-app.use('/api/v1/iot', require('./modules/iot/iot.routes'));
+app.use('/api/v1/stock', inventoryRoutes);
+app.use('/api/v1/receipts', inventoryRoutes);
+app.use('/api/v1/picking', inventoryRoutes);
+app.use('/api/v1/users', usersRoutes);
+app.use('/api/v1/purchase-orders', procurementRoutes);
+app.use('/api/v1/suppliers', procurementRoutes);
+app.use('/api/v1/batches', qualityRoutes);
+app.use('/api/v1/work-orders', productionRoutes);
+app.use('/api/v1/boms', productionRoutes);
+app.use('/api/v1/sales-orders', salesRoutes);
+app.use('/api/v1/returns', salesRoutes);
+app.use('/api/v1/regulatory', complianceRoutes);
+app.use('/api/v1/iot', iotRoutes);
+app.use('/api/v1/reports', reportingRoutes);
+app.use('/api/v1/alerts', alertsRoutes);
 
-// Handle 404 for undefined routes
+// 404 handler
 app.use((req, res, next) => {
-  next(AppError.notFound(`Route ${req.method} ${req.originalUrl} not found`));
-});
-
-// Async error handler middleware - catches unhandled async errors
-app.use((err, req, res, next) => {
-  // Ensure all async errors are caught and passed to the error handler
-  if (!err.statusCode) {
-    err.statusCode = 500;
-  }
+  const err = new Error('Not Found');
+  err.statusCode = 404;
+  err.code = 'NOT_FOUND';
   next(err);
 });
 

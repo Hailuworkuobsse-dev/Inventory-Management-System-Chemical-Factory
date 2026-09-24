@@ -1,217 +1,166 @@
-const { PrismaClient } = require('@prisma/client');
-const { AppError } = require('../../utils/customErrors');
-const notificationService = require('../../services/notification.service');
+const prisma = require('../../utils/prisma');
+const AppError = require('../../utils/appError');
 
-const prisma = new PrismaClient();
+const alertsService = {
+  async listAlerts(query) {
+    const { status, type, page = '1', limit = '20' } = query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
 
-/**
- * Create an alert
- */
-async function createAlert(data, userId) {
-  const { type, severity, title, message, entityId, entityType, warehouseId } = data;
+    const where = {};
+    if (status) where.status = status;
+    if (type) where.type = type;
 
-  const alert = await prisma.alert.create({
-    data: {
-      type,
-      severity,
-      title,
-      message,
-      entityId,
-      entityType,
-      warehouseId,
-      status: 'ACTIVE',
-      createdBy: userId
-    },
-    include: { warehouse: true }
-  });
+    const [alerts, total] = await Promise.all([
+      prisma.alert.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          product: true,
+          batch: true,
+          warehouse: true,
+          createdBy: true
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.alert.count({ where })
+    ]);
 
-  // Send notifications for high/critical alerts
-  if (severity === 'HIGH' || severity === 'CRITICAL') {
-    await notificationService.sendAlertNotification(alert);
+    return {
+      items: alerts,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    };
+  },
+
+  async getAlert(id) {
+    const alert = await prisma.alert.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        product: true,
+        batch: true,
+        warehouse: true,
+        createdBy: true,
+        updatedBy: true
+      }
+    });
+
+    if (!alert) {
+      throw new AppError('Alert not found', 404, 'NOT_FOUND');
+    }
+
+    return alert;
+  },
+
+  async updateAlertStatus(id, status, userId) {
+    const alert = await prisma.alert.update({
+      where: { id: parseInt(id) },
+      data: {
+        status,
+        resolvedAt: status === 'RESOLVED' ? new Date() : null,
+        resolvedById: status === 'RESOLVED' ? userId : null
+      },
+      include: {
+        product: true,
+        batch: true
+      }
+    });
+
+    return alert;
+  },
+
+  async getConfigurations() {
+    const configs = await prisma.alertConfiguration.findMany({
+      include: {
+        createdBy: true,
+        updatedBy: true
+      }
+    });
+    return configs;
+  },
+
+  async updateConfiguration(id, data) {
+    const config = await prisma.alertConfiguration.update({
+      where: { id: parseInt(id) },
+      data: {
+        ...data,
+        updatedAt: new Date()
+      }
+    });
+    return config;
+  },
+
+  async getExpiryAlerts(days) {
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + days);
+
+    const batches = await prisma.batch.findMany({
+      where: {
+        expiryDate: {
+          lte: expiryDate
+        },
+        status: 'RELEASED'
+      },
+      include: {
+        product: true,
+        stocks: {
+          where: { quantity: { gt: 0 } },
+          include: { warehouse: true }
+        }
+      }
+    });
+
+    const alerts = batches.map(batch => ({
+      batchId: batch.id,
+      batchNumber: batch.batchNumber,
+      productId: batch.productId,
+      productName: batch.product.name,
+      expiryDate: batch.expiryDate,
+      daysUntilExpiry: Math.ceil((batch.expiryDate - new Date()) / (1000 * 60 * 60 * 24)),
+      totalQuantity: batch.stocks.reduce((sum, s) => sum + s.quantity, 0),
+      locations: batch.stocks.map(s => ({
+        warehouseId: s.warehouseId,
+        warehouseName: s.warehouse.name,
+        quantity: s.quantity
+      }))
+    }));
+
+    return alerts;
+  },
+
+  async getStockOutAlerts() {
+    const products = await prisma.product.findMany({
+      include: {
+        stocks: {
+          where: { quantity: { gt: 0 } }
+        }
+      }
+    });
+
+    const alerts = [];
+    for (const product of products) {
+      const totalStock = product.stocks.reduce((sum, s) => sum + s.quantity, 0);
+      if (totalStock <= product.safetyStock || 0) {
+        alerts.push({
+          productId: product.id,
+          productName: product.name,
+          sku: product.sku,
+          currentStock: totalStock,
+          safetyStock: product.safetyStock,
+          isEssential: product.isEssentialMedicine,
+          severity: totalStock === 0 ? 'CRITICAL' : 'WARNING'
+        });
+      }
+    }
+
+    return alerts.sort((a, b) => {
+      if (a.severity === 'CRITICAL') return -1;
+      if (b.severity === 'CRITICAL') return 1;
+      return b.currentStock - a.currentStock;
+    });
   }
-
-  return alert;
-}
-
-/**
- * Update alert status
- */
-async function updateAlertStatus(alertId, status, resolutionNotes, userId) {
-  const alert = await prisma.alert.update({
-    where: { id: alertId },
-    data: {
-      status,
-      resolutionNotes,
-      resolvedAt: status === 'RESOLVED' ? new Date() : null,
-      resolvedBy: status === 'RESOLVED' ? userId : null
-    }
-  });
-
-  return alert;
-}
-
-/**
- * Get active alerts with filters
- */
-async function getActiveAlerts(filters) {
-  const { warehouseId, severity, type, limit = 50 } = filters;
-
-  const where = {
-    status: 'ACTIVE'
-  };
-
-  if (warehouseId) where.warehouseId = warehouseId;
-  if (severity) where.severity = severity;
-  if (type) where.type = type;
-
-  return prisma.alert.findMany({
-    where,
-    orderBy: [{ severity: 'desc' }, { createdAt: 'desc' }],
-    take: limit,
-    include: {
-      warehouse: true,
-      createdByUser: {
-        select: { id: true, email: true, firstName: true, lastName: true }
-      }
-    }
-  });
-}
-
-/**
- * Create alert threshold
- */
-async function createAlertThreshold(data, userId) {
-  const { metricType, thresholdType, value, itemId, warehouseId, alertSeverity } = data;
-
-  const threshold = await prisma.alertThreshold.create({
-    data: {
-      metricType,
-      thresholdType,
-      value,
-      itemId,
-      warehouseId,
-      alertSeverity,
-      isActive: true,
-      createdBy: userId
-    },
-    include: { item: true, warehouse: true }
-  });
-
-  return threshold;
-}
-
-/**
- * Update alert threshold
- */
-async function updateAlertThreshold(thresholdId, data, userId) {
-  const { value, alertSeverity, isActive } = data;
-
-  const updateData = {};
-  if (value !== undefined) updateData.value = value;
-  if (alertSeverity) updateData.alertSeverity = alertSeverity;
-  if (isActive !== undefined) updateData.isActive = isActive;
-
-  return prisma.alertThreshold.update({
-    where: { id: thresholdId },
-    data: updateData
-  });
-}
-
-/**
- * Get all thresholds
- */
-async function getThresholds(filters) {
-  const { warehouseId, metricType } = filters;
-
-  const where = { isActive: true };
-  if (warehouseId) where.warehouseId = warehouseId;
-  if (metricType) where.metricType = metricType;
-
-  return prisma.alertThreshold.findMany({
-    where,
-    include: {
-      item: true,
-      warehouse: true,
-      createdByUser: {
-        select: { id: true, email: true }
-      }
-    }
-  });
-}
-
-/**
- * Delete a threshold
- */
-async function deleteThreshold(thresholdId, userId) {
-  await prisma.alertThreshold.delete({
-    where: { id: thresholdId }
-  });
-
-  return { success: true };
-}
-
-/**
- * Get alert statistics
- */
-async function getAlertStats(warehouseId, daysBack = 30) {
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - daysBack);
-
-  const [
-    totalAlerts,
-    bySeverity,
-    byType,
-    avgResolutionTime
-  ] = await Promise.all([
-    prisma.alert.count({
-      where: {
-        createdAt: { gte: startDate },
-        ...(warehouseId ? { warehouseId } : {})
-      }
-    }),
-    prisma.alert.groupBy({
-      by: ['severity'],
-      _count: true,
-      where: {
-        createdAt: { gte: startDate },
-        ...(warehouseId ? { warehouseId } : {})
-      }
-    }),
-    prisma.alert.groupBy({
-      by: ['type'],
-      _count: true,
-      where: {
-        createdAt: { gte: startDate },
-        ...(warehouseId ? { warehouseId } : {})
-      }
-    }),
-    // Average resolution time (simplified)
-    prisma.alert.aggregate({
-      _avg: { resolutionTimeHours: true },
-      where: {
-        status: 'RESOLVED',
-        resolvedAt: { gte: startDate },
-        ...(warehouseId ? { warehouseId } : {})
-      }
-    })
-  ]);
-
-  return {
-    period: { days: daysBack, startDate, endDate: new Date() },
-    totalAlerts,
-    bySeverity: bySeverity.reduce((acc, curr) => ({ ...acc, [curr.severity]: curr._count }), {}),
-    byType: byType.reduce((acc, curr) => ({ ...acc, [curr.type]: curr._count }), {}),
-    avgResolutionTimeHours: avgResolutionTime._avg.resolutionTimeHours || 0
-  };
-}
-
-module.exports = {
-  createAlert,
-  updateAlertStatus,
-  getActiveAlerts,
-  createAlertThreshold,
-  updateAlertThreshold,
-  getThresholds,
-  deleteThreshold,
-  getAlertStats
 };
+
+module.exports = alertsService;

@@ -1,150 +1,211 @@
+const axios = require('axios');
+const config = require('../../config');
+const prisma = require('../../utils/prisma');
+const AppError = require('../../utils/appError');
+
 /**
- * Forex Service
- * Handles currency exchange rate operations
+ * Fetch current forex rates from National Bank of Ethiopia (NBE) or manual source
+ * @param {string} currency - Currency code (e.g., 'USD', 'EUR')
+ * @returns {Promise<Object>} Forex rate data
  */
-
-const { AppError } = require('../../utils/customErrors');
-
-class ForexService {
-  constructor(config = {}) {
-    this.config = config;
-    this.provider = config.provider || 'mock'; // mock, openexchangerates, fixer, etc.
-    this.apiKey = config.apiKey;
-    this.baseCurrency = config.baseCurrency || 'USD';
-    this.cache = new Map();
-    this.cacheExpiry = config.cacheExpiry || 3600000; // 1 hour default
-  }
-
-  /**
-   * Get exchange rate between two currencies
-   */
-  async getRate(baseCurrency, targetCurrency) {
-    if (baseCurrency === targetCurrency) {
-      return { rate: 1, base: baseCurrency, target: targetCurrency, timestamp: new Date() };
-    }
-
-    const cacheKey = `${baseCurrency}_${targetCurrency}`;
-    const cached = this.cache.get(cacheKey);
-
-    if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
-      return cached;
-    }
-
-    try {
-      let rate;
-
-      if (this.provider === 'mock') {
-        rate = this._getMockRate(baseCurrency, targetCurrency);
-      } else {
-        // In production, call external API
-        // rate = await this._fetchFromProvider(baseCurrency, targetCurrency);
-        rate = this._getMockRate(baseCurrency, targetCurrency);
-      }
-
-      const result = {
-        rate,
-        base: baseCurrency,
-        target: targetCurrency,
-        timestamp: new Date()
+const fetchForexRate = async (currency = 'USD') => {
+  try {
+    // If NBE API is available, fetch from there
+    if (config.NBE_API_URL) {
+      const response = await axios.get(`${config.NBE_API_URL}/rates/${currency}`);
+      return {
+        currency,
+        rateToETB: parseFloat(response.data.rate),
+        source: 'NBE',
+        effectiveDate: new Date()
       };
-
-      this.cache.set(cacheKey, result);
-      return result;
-    } catch (error) {
-      throw new AppError(`Failed to get exchange rate: ${error.message}`, 500);
     }
-  }
 
-  /**
-   * Convert amount from one currency to another
-   */
-  async convert(amount, fromCurrency, toCurrency) {
-    const { rate } = await this.getRate(fromCurrency, toCurrency);
-    return {
-      originalAmount: amount,
-      originalCurrency: fromCurrency,
-      convertedAmount: amount * rate,
-      targetCurrency: toCurrency,
-      rate,
-      timestamp: new Date()
-    };
-  }
+    // Fallback: Get manually entered latest rate from database
+    const latestRate = await prisma.forexRate.findFirst({
+      where: { currency },
+      orderBy: { effectiveDate: 'desc' }
+    });
 
-  /**
-   * Record a forex transaction with rate locking
-   */
-  async recordTransaction(transactionData) {
-    const { amount, fromCurrency, toCurrency, purpose } = transactionData;
-    
-    const { rate } = await this.getRate(fromCurrency, toCurrency);
-    
-    return {
-      ...transactionData,
-      appliedRate: rate,
-      convertedAmount: amount * rate,
-      recordedAt: new Date(),
-      rateLockedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-    };
-  }
+    if (latestRate) {
+      return latestRate;
+    }
 
-  /**
-   * Get historical rates (mock implementation)
-   */
-  async getHistoricalRates(baseCurrency, targetCurrency, startDate, endDate) {
-    // In production, fetch from provider's historical endpoint
-    const rates = [];
-    const current = new Date(startDate);
-    
-    while (current <= endDate) {
-      rates.push({
-        date: new Date(current),
-        rate: this._getMockRate(baseCurrency, targetCurrency) * (0.95 + Math.random() * 0.1),
-        base: baseCurrency,
-        target: targetCurrency
+    throw new AppError(`No forex rate found for ${currency}`, 404, 'FOREX_RATE_NOT_FOUND');
+  } catch (error) {
+    console.error('Failed to fetch forex rate:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Update forex rates in the database
+ * @param {Array} rates - Array of rate objects { currency, rateToETB, source }
+ * @returns {Promise<Array>} Created forex rate records
+ */
+const updateForexRates = async (rates) => {
+  try {
+    const created = [];
+
+    for (const rate of rates) {
+      const newRate = await prisma.forexRate.create({
+        data: {
+          currency: rate.currency,
+          rateToETB: rate.rateToETB,
+          source: rate.source || 'MANUAL',
+          effectiveDate: rate.effectiveDate ? new Date(rate.effectiveDate) : new Date()
+        }
       });
-      current.setDate(current.getDate() + 1);
+      created.push(newRate);
     }
 
-    return rates;
+    console.log(`Updated ${created.length} forex rates`);
+    return created;
+  } catch (error) {
+    console.error('Failed to update forex rates:', error);
+    throw new AppError('Failed to update forex rates', 500, 'FOREX_UPDATE_FAILED');
   }
+};
 
-  /**
-   * Mock rate generator
-   */
-  _getMockRate(base, target) {
-    const mockRates = {
-      USD: { EUR: 0.85, GBP: 0.73, KES: 110.5, TZS: 2350, UGX: 3650, ZMW: 18.5 },
-      EUR: { USD: 1.18, GBP: 0.86, KES: 130, TZS: 2765, UGX: 4295, ZMW: 21.8 },
-      GBP: { USD: 1.37, EUR: 1.16, KES: 151, TZS: 3215, UGX: 4990, ZMW: 25.3 },
-      KES: { USD: 0.0091, EUR: 0.0077, GBP: 0.0066, TZS: 21.3, UGX: 33 },
-      TZS: { USD: 0.00043, EUR: 0.00036, GBP: 0.00031, KES: 0.047, UGX: 1.55 },
-      UGX: { USD: 0.00027, EUR: 0.00023, GBP: 0.00020, KES: 0.030, TZS: 0.65 }
+/**
+ * Allocate forex to a purchase order (FR-021)
+ * @param {Object} options - Allocation options
+ * @param {number} options.purchaseOrderId - Purchase Order ID
+ * @param {number} options.allocatedAmount - Amount to allocate
+ * @param {number} options.rate - Exchange rate to use
+ * @returns {Promise<Object>} Created forex allocation
+ */
+const allocateForex = async ({ purchaseOrderId, allocatedAmount, rate }) => {
+  const prisma = require('../../utils/prisma');
+
+  try {
+    // Verify PO exists and is in valid state
+    const po = await prisma.purchaseOrder.findUnique({
+      where: { id: purchaseOrderId },
+      include: { forexAllocations: true }
+    });
+
+    if (!po) {
+      throw new AppError('Purchase order not found', 404, 'PO_NOT_FOUND');
+    }
+
+    if (po.status === 'CANCELLED' || po.status === 'COMPLETED') {
+      throw new AppError('Cannot allocate forex to cancelled or completed PO', 400, 'INVALID_PO_STATUS');
+    }
+
+    // Calculate total already allocated
+    const totalAllocated = po.forexAlocations.reduce(
+      (sum, alloc) => sum + parseFloat(alloc.allocatedAmount),
+      0
+    );
+
+    // Check if allocation exceeds PO total
+    if (totalAllocated + allocatedAmount > parseFloat(po.totalAmount)) {
+      throw new AppError(
+        `Total allocation would exceed PO amount. Already allocated: ${totalAllocated}, PO total: ${po.totalAmount}`,
+        400,
+        'ALLOCATION_EXCEEDS_PO'
+      );
+    }
+
+    // Create forex allocation
+    const allocation = await prisma.forexAlocation.create({
+      data: {
+        purchaseOrderId,
+        allocatedAmount,
+        rate
+      }
+    });
+
+    // Update PO with forex rate if not set
+    if (!po.forexRate) {
+      await prisma.purchaseOrder.update({
+        where: { id: purchaseOrderId },
+        data: { forexRate: rate }
+      });
+    }
+
+    console.log(`Forex allocated: ${allocatedAmount} at rate ${rate} for PO #${purchaseOrderId}`);
+    return allocation;
+  } catch (error) {
+    console.error('Failed to allocate forex:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get prioritized list of POs for forex allocation (FR-021)
+ * @param {Object} options - Query options
+ * @param {number} options.budget - Available budget in ETB
+ * @param {string} options.currency - Currency (default: USD)
+ * @returns {Promise<Array>} Prioritized PO list
+ */
+const getPrioritizedPOs = async ({ budget, currency = 'USD' }) => {
+  try {
+    // Get current forex rate
+    const currentRate = await fetchForexRate(currency);
+
+    // Get pending POs awaiting forex allocation
+    const pendingPOs = await prisma.purchaseOrder.findMany({
+      where: {
+        status: { in: ['DRAFT', 'PENDING_APPROVAL', 'APPROVED'] },
+        currency
+      },
+      include: {
+        supplier: true,
+        forexAllocations: true,
+        items: {
+          include: {
+            product: true
+          }
+        }
+      },
+      orderBy: {
+        expectedDate: 'asc' // Prioritize by earliest expected date
+      }
+    });
+
+    // Calculate remaining amount needed for each PO and prioritize
+    const prioritized = pendingPOs.map(po => {
+      const totalAllocated = po.forexAlocations.reduce(
+        (sum, alloc) => sum + parseFloat(alloc.allocatedAmount),
+        0
+      );
+      const remainingAmount = parseFloat(po.totalAmount) - totalAllocated;
+      const remainingETB = remainingAmount * currentRate.rateToETB;
+
+      return {
+        ...po,
+        remainingAmount,
+        remainingETB,
+        canFulfill: remainingETB <= budget,
+        priority: po.expectedDate // Earlier dates = higher priority
+      };
+    });
+
+    // Sort by priority (earliest first)
+    prioritized.sort((a, b) => new Date(a.priority) - new Date(b.priority));
+
+    return {
+      budget,
+      currency,
+      currentRate: currentRate.rateToETB,
+      pos: prioritized,
+      summary: {
+        totalPOs: prioritized.length,
+        fulfillableCount: prioritized.filter(po => po.canFulfill).length,
+        totalRequiredETB: prioritized.reduce((sum, po) => sum + po.remainingETB, 0)
+      }
     };
-
-    if (base === target) return 1;
-    if (mockRates[base] && mockRates[base][target]) {
-      return mockRates[base][target];
-    }
-    
-    // Reverse lookup
-    if (mockRates[target] && mockRates[target][base]) {
-      return 1 / mockRates[target][base];
-    }
-
-    return 1.0; // Default fallback
+  } catch (error) {
+    console.error('Failed to get prioritized POs:', error);
+    throw error;
   }
+};
 
-  /**
-   * Fetch from external provider (placeholder)
-   */
-  async _fetchFromProvider(base, target) {
-    // Implementation for OpenExchangeRates, Fixer.io, etc.
-    // const response = await axios.get(`https://api.exchangeratesapi.io/latest?base=${base}&symbols=${target}`, {
-    //   headers: { Authorization: `Bearer ${this.apiKey}` }
-    // });
-    // return response.data.rates[target];
-    throw new Error('External provider not configured');
-  }
-}
-
-module.exports = new ForexService();
+module.exports = {
+  fetchForexRate,
+  updateForexRates,
+  allocateForex,
+  getPrioritizedPOs
+};

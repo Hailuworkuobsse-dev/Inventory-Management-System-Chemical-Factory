@@ -1,55 +1,61 @@
 const AppError = require('../utils/appError');
 
 /**
- * Request Validation Middleware Factory
- * Creates validation middleware using provided schema validation function
- * 
- * Usage: validate(loginSchema.validateLogin)
+ * Generic validation middleware factory
+ * @param {Object} schema - Joi or Zod schema object with methods for different HTTP methods
+ * @returns {Function} Express middleware function
  */
-const validate = (validateFn) => {
+const validate = (schema) => {
   return async (req, res, next) => {
     try {
-      const { error, value } = await validateFn(req.body);
+      // Determine which schema to use based on request method
+      let schemaToUse;
       
-      if (error) {
-        const err = new Error('Validation failed');
-        err.name = 'ValidationError';
-        err.details = error.details?.map(detail => ({
-          message: detail.message,
-          path: detail.path,
-        }));
-        throw err;
+      switch (req.method) {
+        case 'POST':
+          schemaToUse = schema.body || schema.create;
+          break;
+        case 'PUT':
+        case 'PATCH':
+          schemaToUse = schema.body || schema.update;
+          break;
+        case 'GET':
+          schemaToUse = schema.query;
+          break;
+        case 'DELETE':
+          schemaToUse = schema.params;
+          break;
+        default:
+          schemaToUse = schema.body;
       }
 
-      // Attach validated data to request
-      req.validatedBody = value;
-      next();
-    } catch (error) {
-      next(error);
-    }
-  };
-};
-
-/**
- * Query Parameter Validation Middleware
- * Validates and parses query parameters for pagination and filtering
- */
-const validateQuery = (schema) => {
-  return async (req, res, next) => {
-    try {
-      const { error, value } = await schema(req.query);
-      
-      if (error) {
-        const err = new Error('Query validation failed');
-        err.name = 'ValidationError';
-        err.details = error.details?.map(detail => ({
-          message: detail.message,
-          path: detail.path,
-        }));
-        throw err;
+      if (!schemaToUse) {
+        return next();
       }
 
-      req.validatedQuery = value;
+      // Validate using Joi schema
+      const { error, value } = schemaToUse.validate(
+        req.method === 'GET' ? req.query : req.body,
+        { abortEarly: false, stripUnknown: true }
+      );
+
+      if (error) {
+        const errors = error.details.map((detail) => ({
+          field: detail.path.join('.'),
+          message: detail.message,
+          code: 'VALIDATION_ERROR'
+        }));
+
+        throw new AppError('Validation failed', 400, 'VALIDATION_ERROR', errors);
+      }
+
+      // Replace req.body/query with validated data
+      if (req.method === 'GET') {
+        req.query = value;
+      } else {
+        req.body = value;
+      }
+
       next();
     } catch (error) {
       next(error);
@@ -58,4 +64,3 @@ const validateQuery = (schema) => {
 };
 
 module.exports = validate;
-module.exports.validateQuery = validateQuery;

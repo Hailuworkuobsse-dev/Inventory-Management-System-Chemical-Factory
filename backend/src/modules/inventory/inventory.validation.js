@@ -1,56 +1,64 @@
 const Joi = require('joi');
 
-const goodsReceiptSchema = Joi.object({
-  warehouseId: Joi.string().uuid().required(),
-  supplierId: Joi.string().uuid().required(),
-  poNumber: Joi.string().optional(),
+const receiptSchema = Joi.object({
+  warehouseId: Joi.number().required(),
+  purchaseOrderId: Joi.number().optional(),
+  iImportPermit: Joi.string().optional(),
   items: Joi.array().items(
     Joi.object({
-      itemId: Joi.string().uuid().required(),
+      productId: Joi.number().required(),
+      batchNumber: Joi.string().required(),
+      manufactureDate: Joi.date().required(),
+      expiryDate: Joi.date().min(Joi.ref('manufactureDate')).required(),
       quantity: Joi.number().positive().required(),
-      costPrice: Joi.number().positive().required(),
-      manufacturingDate: Joi.date().optional(),
-      expiresAt: Joi.date().greater('now').optional()
+      unitCost: Joi.number().positive().required(),
+      currency: Joi.string().default('USD'),
+      labTestRequired: Joi.boolean().default(false)
     })
-  ).min(1).required(),
-  qualityStatus: Joi.string().valid('PENDING', 'ACCEPTED', 'REJECTED').default('PENDING')
+  ).required()
 });
 
-const stockTransferSchema = Joi.object({
-  fromWarehouseId: Joi.string().uuid().required(),
-  toWarehouseId: Joi.string().uuid().required().different('fromWarehouseId'),
+const acceptReceiptSchema = Joi.object({
   items: Joi.array().items(
     Joi.object({
-      itemId: Joi.string().uuid().required(),
-      batchId: Joi.string().uuid().required(),
-      quantity: Joi.number().positive().required()
+      receiptItemId: Joi.number().required(),
+      quantityAccepted: Joi.number().positive().required()
     })
-  ).min(1).required()
+  ).required()
 });
 
-const receiveTransferSchema = Joi.object({
-  transferId: Joi.string().uuid().required()
+const transferStockSchema = Joi.object({
+  fromStockId: Joi.number().required(),
+  toWarehouseId: Joi.number().required(),
+  toBinLabel: Joi.string().optional(),
+  quantity: Joi.number().positive().required(),
+  reason: Joi.string().optional()
 });
 
 const adjustStockSchema = Joi.object({
-  warehouseId: Joi.string().uuid().required(),
-  itemId: Joi.string().uuid().required(),
-  batchId: Joi.string().uuid().optional(),
-  quantity: Joi.number().required(), // Positive for add, negative for deduct
-  reason: Joi.string().required(),
-  notes: Joi.string().optional()
+  stockId: Joi.number().required(),
+  adjustedQuantity: Joi.number().min(0).required(),
+  reason: Joi.string().required()
 });
 
-const getStockLevelsSchema = Joi.object({
-  warehouseId: Joi.string().uuid().optional(),
-  itemId: Joi.string().uuid().optional(),
-  batchId: Joi.string().uuid().optional()
+const disposeStockSchema = Joi.object({
+  stockId: Joi.number().required(),
+  quantity: Joi.number().positive().required(),
+  disposalMethod: Joi.string().valid('INCINERATION', 'LANDFILL', 'RETURN_TO_SUPPLIER', 'OTHER').required()
+});
+
+const reserveStockSchema = Joi.object({
+  warehouseId: Joi.number().required(),
+  productId: Joi.number().required(),
+  quantity: Joi.number().positive().required(),
+  orderReference: Joi.string().optional()
 });
 
 module.exports = {
-  goodsReceiptSchema,
-  stockTransferSchema,
-  receiveTransferSchema,
+  receiptSchema,
+  acceptReceiptSchema,
+  transferStockSchema,
   adjustStockSchema,
-  getStockLevelsSchema
+  disposeStockSchema,
+  reserveStockSchema
 };

@@ -1,50 +1,66 @@
 const Joi = require('joi');
 
-const createSupplierSchema = Joi.object({
-  name: Joi.string().required(),
-  email: Joi.string().email().required(),
-  phone: Joi.string().optional(),
-  address: Joi.string().optional(),
-  taxId: Joi.string().optional(),
-  currency: Joi.string().default('USD')
-});
+const procurementValidation = {
+  createSupplier: Joi.object({
+    name: Joi.string().required(),
+    email: Joi.string().email().required(),
+    phone: Joi.string().optional(),
+    address: Joi.string().optional(),
+    country: Joi.string().optional(),
+    isActive: Joi.boolean().optional(),
+    isCertified: Joi.boolean().optional(),
+    certificateExpiryDate: Joi.date().optional()
+  }),
 
-const createPurchaseOrderSchema = Joi.object({
-  supplierId: Joi.string().uuid().required(),
-  warehouseId: Joi.string().uuid().required(),
-  items: Joi.array().items(
-    Joi.object({
-      itemId: Joi.string().uuid().required(),
-      quantity: Joi.number().positive().required(),
-      unitPrice: Joi.number().positive().required(),
-      currency: Joi.string().default('USD')
-    })
-  ).min(1).required(),
-  expectedDeliveryDate: Joi.date().greater('now').required(),
-  notes: Joi.string().optional()
-});
+  updateSupplier: Joi.object({
+    name: Joi.string().optional(),
+    email: Joi.string().email().optional(),
+    phone: Joi.string().optional(),
+    address: Joi.string().optional(),
+    country: Joi.string().optional(),
+    isActive: Joi.boolean().optional(),
+    isCertified: Joi.boolean().optional(),
+    certificateExpiryDate: Joi.date().optional()
+  }),
 
-const updatePOStatusSchema = Joi.object({
-  status: Joi.string().valid('PENDING', 'APPROVED', 'REJECTED', 'PARTIALLY_RECEIVED', 'COMPLETED').required()
-});
+  createPurchaseOrder: Joi.object({
+    supplierId: Joi.number().required(),
+    currency: Joi.string().length(3).optional(),
+    lcId: Joi.string().optional(),
+    expectedDate: Joi.date().optional(),
+    items: Joi.array().items(
+      Joi.object({
+        productId: Joi.number().required(),
+        quantity: Joi.number().min(1).required(),
+        unitPrice: Joi.number().min(0).required()
+      })
+    ).min(1).required()
+  }),
 
-const recordForexAllocationSchema = Joi.object({
-  poId: Joi.string().uuid().required(),
-  amount: Joi.number().positive().required(),
-  currency: Joi.string().required(),
-  exchangeRate: Joi.number().positive().required(),
-  allocationDate: Joi.date().iso().optional()
-});
+  updatePurchaseOrder: Joi.object({
+    supplierId: Joi.number().optional(),
+    currency: Joi.string().length(3).optional(),
+    expectedDate: Joi.date().optional(),
+    items: Joi.array().items(
+      Joi.object({
+        productId: Joi.number().required(),
+        quantity: Joi.number().min(1).required(),
+        unitPrice: Joi.number().min(0).required()
+      })
+    ).optional()
+  }),
 
-const getForexRatesSchema = Joi.object({
-  baseCurrency: Joi.string().default('USD'),
-  targetCurrency: Joi.string().required()
-});
+  allocateForex: Joi.object({
+    allocatedAmount: Joi.number().min(0.01).required(),
+    rate: Joi.number().min(0.01).required()
+  }),
 
-module.exports = {
-  createSupplierSchema,
-  createPurchaseOrderSchema,
-  updatePOStatusSchema,
-  recordForexAllocationSchema,
-  getForexRatesSchema
+  createForexRate: Joi.object({
+    currency: Joi.string().length(3).required(),
+    rateToETB: Joi.number().min(0.01).required(),
+    source: Joi.string().optional(),
+    effectiveDate: Joi.date().optional()
+  })
 };
+
+module.exports = procurementValidation;

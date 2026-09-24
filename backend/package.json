@@ -1,44 +1,49 @@
 {
   "name": "aims-backend",
   "version": "1.0.0",
-  "description": "Advanced Inventory Management System (AIMS) - Backend API",
+  "description": "Advanced Inventory Management System - Backend API",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest --coverage",
-    "test:watch": "jest --watch",
-    "test:integration": "jest --config jest.integration.config.js",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
+    "test:e2e": "jest tests/e2e",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:migrate:prod": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "prisma db seed",
-    "lint": "eslint src/**/*.js",
-    "lint:fix": "eslint src/**/*.js --fix",
+    "lint": "eslint src/",
     "format": "prettier --write \"src/**/*.js\""
   },
   "keywords": [
     "inventory",
     "erp",
     "pharma",
-    "warehouse",
-    "ethiopia"
+    "supply-chain"
   ],
-  "author": "",
+  "author": "AIMS Team",
   "license": "MIT",
   "dependencies": {
     "@prisma/client": "^5.7.0",
     "bcryptjs": "^2.4.3",
-    "cookie-parser": "^1.4.6",
+    "bullmq": "^5.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
+    "ioredis": "^5.3.2",
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
+    "mqtt": "^5.3.0",
     "morgan": "^1.10.0",
-    "mqtt": "^5.3.0"
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.7",
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "eslint": "^8.55.0",
@@ -50,8 +55,5 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
   }
 }
