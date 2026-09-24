@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AppLayout from '../../../layouts/AppLayout';
 import Breadcrumb from '../../../components/Breadcrumb';
 import POForm from '../components/POForm';
 import { ArrowLeft } from 'lucide-react';
@@ -21,7 +20,8 @@ export default function PurchaseOrderCreatePage() {
   };
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <button
@@ -38,6 +38,6 @@ export default function PurchaseOrderCreatePage() {
           <POForm onSubmit={handleSubmit} onCancel={() => navigate(-1)} />
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 }

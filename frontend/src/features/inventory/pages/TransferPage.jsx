@@ -1,21 +1,15 @@
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
-import AppLayout from '../../../layouts/AppLayout';
 import Breadcrumb from '../../../components/Breadcrumb';
 import TransferForm from '../components/TransferForm';
 
 const TransferPage = () => {
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  const navigate = useNavigate();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+    const navigate = useNavigate();
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         <Breadcrumb items={[
           { label: 'Inventory', path: '/inventory' },
@@ -41,7 +35,7 @@ const TransferPage = () => {
           }}
         />
       </div>
-    </AppLayout>
+    </>
   );
 };
 

@@ -1,23 +1,18 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Filter, Download } from 'lucide-react';
-import AppLayout from '../../../layouts/AppLayout';
 import ReceiptForm from '../components/ReceiptForm';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import Breadcrumb from '../../../components/Breadcrumb';
 
 const ReceiptListPage = () => {
-  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
 
   // Mock data - will be replaced with API data
   const receipts = [
@@ -54,7 +49,8 @@ const ReceiptListPage = () => {
 
   if (showCreateForm) {
     return (
-      <AppLayout>
+      <>
+
         <div className="space-y-6">
           <Breadcrumb items={[
             { label: 'Inventory', path: '/inventory' },
@@ -66,12 +62,13 @@ const ReceiptListPage = () => {
             // Refresh data or show success message
           }} />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
@@ -129,7 +126,7 @@ const ReceiptListPage = () => {
           emptyMessage="No receipts found"
         />
       </div>
-    </AppLayout>
+    </>
   );
 };
 

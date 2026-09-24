@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Package } from 'lucide-react';
-import useAuth from '../hooks/useAuth';
+import { useAuth } from '../../../hooks/useAuth';
 
 const LoginForm = () => {
   const navigate = useNavigate();

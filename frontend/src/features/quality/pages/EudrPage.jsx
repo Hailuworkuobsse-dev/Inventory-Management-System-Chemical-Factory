@@ -1,18 +1,11 @@
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
-import { Navigate } from 'react-router-dom';
+
 import { FileCheck, Download, Upload } from 'lucide-react';
-import AppLayout from '../../../layouts/AppLayout';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 
 const EudrPage = () => {
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  const [filter, setFilter] = useState('all');
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+    const [filter, setFilter] = useState('all');
 
   // Mock data - will be replaced with API data
   const complianceRecords = [
@@ -48,7 +41,8 @@ const EudrPage = () => {
   ];
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
@@ -127,7 +121,7 @@ const EudrPage = () => {
           emptyMessage="No compliance records found"
         />
       </div>
-    </AppLayout>
+    </>
   );
 };
 

@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Download, AlertCircle } from 'lucide-react';
-import AppLayout from '../../../layouts/AppLayout';
 import Breadcrumb from '../../../components/Breadcrumb';
 import StockDetailCard from '../components/StockDetailCard';
 import DataTable from '../../../components/DataTable';
@@ -10,14 +8,9 @@ import StatusBadge from '../../../components/StatusBadge';
 import ExpiryCountdown from '../../../components/ExpiryCountdown';
 
 const StockDetailPage = () => {
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  const navigate = useNavigate();
+    const navigate = useNavigate();
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState('overview');
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
 
   // Mock data - will be replaced with API data
   const stockItem = {
@@ -77,7 +70,8 @@ const StockDetailPage = () => {
   ];
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         {/* Breadcrumb */}
         <Breadcrumb items={[
@@ -202,7 +196,7 @@ const StockDetailPage = () => {
           </div>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 };
 

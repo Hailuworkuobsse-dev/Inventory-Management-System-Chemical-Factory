@@ -3,9 +3,9 @@ import { Outlet } from 'react-router-dom';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Layouts
-import AppLayout from './layouts/AppLayout';
-import AuthLayout from './layouts/AuthLayout';
-import EmptyLayout from './layouts/EmptyLayout';
+import AppLayout from '../layouts/AppLayout';
+import AuthLayout from '../layouts/AuthLayout';
+import EmptyLayout from '../layouts/EmptyLayout';
 
 // Auth Pages
 import LoginPage from '../features/auth/pages/LoginPage';

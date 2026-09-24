@@ -40,7 +40,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          charts: ['chart.js', 'react-chartjs-2', 'recharts'],
+          charts: ['recharts'],
           utils: ['axios', 'date-fns', '@reduxjs/toolkit', 'react-redux'],
         },
       },

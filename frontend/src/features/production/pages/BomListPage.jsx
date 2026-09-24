@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AppLayout from '../../../layouts/AppLayout';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import EmptyState from '../../../components/EmptyState';
@@ -38,7 +37,8 @@ export default function BomListPage() {
   );
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -83,6 +83,6 @@ export default function BomListPage() {
           />
         )}
       </div>
-    </AppLayout>
+    </>
   );
 }

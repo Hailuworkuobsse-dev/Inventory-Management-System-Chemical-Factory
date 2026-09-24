@@ -1,21 +1,14 @@
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Edit, FileText, AlertTriangle, CheckCircle } from 'lucide-react';
-import AppLayout from '../../../layouts/AppLayout';
 import Breadcrumb from '../../../components/Breadcrumb';
 import StatusBadge from '../../../components/StatusBadge';
 import AuditTimeline from '../../../components/AuditTimeline';
 
 const BatchDetailPage = () => {
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  const navigate = useNavigate();
+    const navigate = useNavigate();
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState('overview');
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
 
   // Mock data - will be replaced with API data
   const batch = {
@@ -57,7 +50,8 @@ const BatchDetailPage = () => {
   ];
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         {/* Breadcrumb */}
         <Breadcrumb items={[
@@ -207,7 +201,7 @@ const BatchDetailPage = () => {
           </div>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 };
 

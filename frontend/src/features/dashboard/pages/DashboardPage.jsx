@@ -1,6 +1,5 @@
 import { useSelector } from 'react-redux';
-import { Navigate } from 'react-router-dom';
-import AppLayout from '../../layouts/AppLayout';
+
 import DashboardGrid from '../components/DashboardGrid';
 import StockValueCard from '../components/widgets/StockValueCard';
 import StockOutRiskList from '../components/widgets/StockOutRiskList';
@@ -8,14 +7,11 @@ import ExpiryTimelineChart from '../components/widgets/ExpiryTimelineChart';
 import RecentTransactions from '../components/widgets/RecentTransactions';
 
 const DashboardPage = () => {
-  const { user, isAuthenticated } = useSelector((state) => state.auth);
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+  const { user } = useSelector((state) => state.auth);
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
@@ -80,7 +76,7 @@ const DashboardPage = () => {
           </div>
         </DashboardGrid>
       </div>
-    </AppLayout>
+    </>
   );
 };
 

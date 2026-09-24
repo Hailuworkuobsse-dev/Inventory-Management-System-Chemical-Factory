@@ -1,21 +1,14 @@
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Filter, Download, Search } from 'lucide-react';
-import AppLayout from '../../../layouts/AppLayout';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import Breadcrumb from '../../../components/Breadcrumb';
 
 const BatchListPage = () => {
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  const navigate = useNavigate();
+    const navigate = useNavigate();
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
 
   // Mock data - will be replaced with API data
   const batches = [
@@ -51,7 +44,8 @@ const BatchListPage = () => {
   ];
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
@@ -111,7 +105,7 @@ const BatchListPage = () => {
           emptyMessage="No batches found"
         />
       </div>
-    </AppLayout>
+    </>
   );
 };
 
