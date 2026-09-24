@@ -19,7 +19,14 @@ export const store = configureStore({
         // Ignore these field paths in state
         ignoredPaths: ['auth.user.avatar'],
       },
-    }).concat(apiSlice.middleware),
+    })
+      .concat(apiSlice.middleware)
+      // Give the offline sync worker access to the RTK Query api util
+      // (extra.invapi) so synced mutations can invalidate caches.
+      .concat((api) => (next) => (action) => {
+        api.extra.invapi = apiSlice;
+        return next(action);
+      }),
   devTools: import.meta.env.DEV,
 });
 

@@ -1,91 +1,67 @@
 import { apiSlice } from './apiSlice';
 
+/**
+ * Quality endpoints — aligned with backend /api/v1/batches routes:
+ * batches (quarantine/release/recall), lab tests, EUDR documents.
+ */
 export const qualityApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // Get all quality control records
-    getQualityRecords: builder.query({
-      query: (params) => ({
-        url: '/quality',
-        params,
-      }),
+    getBatches: builder.query({
+      query: (params) => ({ url: '/batches/batches', params }),
       providesTags: ['Quality'],
     }),
 
-    // Get single quality record
-    getQualityRecordById: builder.query({
-      query: (id) => `/quality/${id}`,
+    getBatchById: builder.query({
+      query: (id) => `/batches/batches/${id}`,
       providesTags: (result, error, id) => [{ type: 'Quality', id }],
     }),
 
-    // Create quality control record
-    createQualityRecord: builder.mutation({
-      query: (data) => ({
-        url: '/quality',
-        method: 'POST',
-        body: data,
+    quarantineBatch: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/batches/batches/${id}/quarantine`,
+        method: 'PUT',
+        body,
       }),
-      invalidatesTags: ['Quality'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'Quality', id }, 'Quality'],
     }),
 
-    // Update quality record
-    updateQualityRecord: builder.mutation({
-      query: ({ id, ...data }) => ({
-        url: `/quality/${id}`,
-        method: 'PATCH',
-        body: data,
+    releaseBatch: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/batches/batches/${id}/release`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Quality', id }, 'Quality'],
+    }),
+
+    recallBatch: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/batches/batches/${id}/recall`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Quality', id }, 'Quality'],
+    }),
+
+    createLabTest: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/batches/batches/${id}/lab-tests`,
+        method: 'POST',
+        body,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Quality', id }],
     }),
 
-    // Delete quality record
-    deleteQualityRecord: builder.mutation({
-      query: (id) => ({
-        url: `/quality/${id}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: ['Quality'],
+    getEudrDocument: builder.query({
+      query: (id) => `/batches/batches/${id}/eudr-document`,
+      providesTags: (result, error, id) => [{ type: 'Quality', id }],
     }),
 
-    // Get quality checks by product
-    getQualityByProduct: builder.query({
-      query: (productId) => `/quality/product/${productId}`,
-      providesTags: ['Quality'],
-    }),
-
-    // Get failed quality checks
-    getFailedQualityChecks: builder.query({
-      query: (params) => ({
-        url: '/quality/failed',
-        params,
-      }),
-      providesTags: ['Quality'],
-    }),
-
-    // Get quality statistics
-    getQualityStats: builder.query({
-      query: (params) => ({
-        url: '/quality/statistics',
-        params,
-      }),
-      providesTags: ['Quality'],
-    }),
-
-    // Approve quality check
-    approveQualityCheck: builder.mutation({
-      query: ({ id, ...data }) => ({
-        url: `/quality/${id}/approve`,
+    createEudrDocument: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/batches/batches/${id}/eudr-document`,
         method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'Quality', id }],
-    }),
-
-    // Reject quality check
-    rejectQualityCheck: builder.mutation({
-      query: ({ id, ...data }) => ({
-        url: `/quality/${id}/reject`,
-        method: 'POST',
-        body: data,
+        body,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Quality', id }],
     }),
@@ -93,16 +69,14 @@ export const qualityApi = apiSlice.injectEndpoints({
 });
 
 export const {
-  useGetQualityRecordsQuery,
-  useGetQualityRecordByIdQuery,
-  useCreateQualityRecordMutation,
-  useUpdateQualityRecordMutation,
-  useDeleteQualityRecordMutation,
-  useGetQualityByProductQuery,
-  useGetFailedQualityChecksQuery,
-  useGetQualityStatsQuery,
-  useApproveQualityCheckMutation,
-  useRejectQualityCheckMutation,
+  useGetBatchesQuery,
+  useGetBatchByIdQuery,
+  useQuarantineBatchMutation,
+  useReleaseBatchMutation,
+  useRecallBatchMutation,
+  useCreateLabTestMutation,
+  useGetEudrDocumentQuery,
+  useCreateEudrDocumentMutation,
 } = qualityApi;
 
 export default qualityApi;

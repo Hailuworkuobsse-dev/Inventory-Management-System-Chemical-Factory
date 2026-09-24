@@ -1,12 +1,18 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { Plus, Trash2 } from 'lucide-react';
 import ScanInput from '../../../components/ScanInput';
 import BinSelectorModal from './BinSelectorModal';
+import { useGetStockQuery } from '../../../services/inventoryEndpoints';
 
 const ReceiptItemsAccept = ({ items = [], onItemsChange }) => {
   const [showBinSelector, setShowBinSelector] = useState(false);
   const [currentItemIndex, setCurrentItemIndex] = useState(null);
   const [scannedBarcode, setScannedBarcode] = useState('');
+
+  // Server stock for barcode -> product/batch lookups
+  const { data: stockResponse } = useGetStockQuery();
+  const stockRows = Array.isArray(stockResponse) ? stockResponse : stockResponse?.data || [];
 
   const handleAddItem = () => {
     const newItem = {
@@ -38,8 +44,34 @@ const ReceiptItemsAccept = ({ items = [], onItemsChange }) => {
 
   const handleScan = (barcode) => {
     setScannedBarcode(barcode);
-    // Auto-populate item based on barcode (mock implementation)
-    // In real app, this would call an API to fetch product details
+    const match = stockRows.find(
+      (row) =>
+        row.product?.barcode === barcode ||
+        row.barcode === barcode ||
+        row.product?.sku === barcode ||
+        row.sku === barcode ||
+        row.batch?.batchNumber === barcode
+    );
+    if (!match) {
+      toast.error(`No product found for ${barcode}`);
+      return;
+    }
+    // Append a pre-filled line for the scanned product/batch
+    const newItem = {
+      id: Date.now(),
+      sku: match.product?.sku || match.sku || '',
+      name: match.product?.name || match.name || '',
+      barcode,
+      expectedQuantity: 0,
+      receivedQuantity: 1,
+      unit: match.unit || match.product?.unit || 'pcs',
+      batchNumber: match.batch?.batchNumber || match.batchNumber || '',
+      expiryDate: match.expiryDate || match.batch?.expiryDate || '',
+      binLocation: match.binLocation || match.location || '',
+      notes: '',
+    };
+    onItemsChange([...items, newItem]);
+    toast.success(`Scanned: ${newItem.name || newItem.sku}`);
   };
 
   const openBinSelector = (index) => {

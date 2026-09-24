@@ -1,10 +1,11 @@
 import React, { useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { FiScan } from 'react-icons/fi';
+import { ScanLine } from 'lucide-react';
 
 /**
  * ScanInput Component
- * Barcode/QR code scanner input with auto-focus
+ * Barcode/QR code scanner input with auto-focus.
+ * Hardware scanners typically send Enter after scanning.
  */
 const ScanInput = ({
   onScan,
@@ -26,7 +27,7 @@ const ScanInput = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     if (!value.trim()) {
       setError('Please enter or scan a barcode');
       return;
@@ -36,7 +37,7 @@ const ScanInput = ({
       onScan(value.trim());
       setValue('');
       setError(null);
-      
+
       // Refocus after successful scan
       if (inputRef.current) {
         inputRef.current.focus();
@@ -47,7 +48,6 @@ const ScanInput = ({
   };
 
   const handleKeyDown = (e) => {
-    // Hardware scanners typically send Enter key after scanning
     if (e.key === 'Enter') {
       handleSubmit(e);
     }
@@ -59,7 +59,7 @@ const ScanInput = ({
         <div className="relative">
           {/* Scan Icon */}
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <FiScan className="h-5 w-5 text-gray-400" />
+            <ScanLine className="h-5 w-5 text-gray-400" />
           </div>
 
           {/* Input Field */}
@@ -71,18 +71,14 @@ const ScanInput = ({
             onKeyDown={handleKeyDown}
             disabled={disabled}
             placeholder={placeholder}
-            className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-              error
-                ? 'border-danger-300 bg-danger-50'
-                : 'border-gray-300 bg-white'
+            className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              error ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
             } ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
           />
         </div>
 
         {/* Error Message */}
-        {error && (
-          <p className="mt-1 text-sm text-danger-600">{error}</p>
-        )}
+        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
 
         {/* Helper Text */}
         {!error && (

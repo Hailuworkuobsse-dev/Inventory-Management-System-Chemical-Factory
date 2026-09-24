@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import EmptyState from '../../../components/EmptyState';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { useGetSalesOrdersQuery } from '../../../services/salesEndpoints';
 import { Plus, ShoppingCart, Search, Filter } from 'lucide-react';
 
 const columns = [
@@ -16,21 +17,14 @@ const columns = [
 
 export default function OrderListPage() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState([]);
+  const { data: response, isLoading: loading, isError, refetch } = useGetSalesOrdersQuery();
+  const fetched = Array.isArray(response) ? response : response?.data || [];
+  const orders = fetched.map((o) => ({
+    ...o,
+    customer: o.customer?.name || o.customerName || '-',
+    totalAmount: Number(o.totalAmount ?? 0),
+  }));
   const [searchTerm, setSearchTerm] = useState('');
-
-  useEffect(() => {
-    setTimeout(() => {
-      setOrders([
-        { id: 1, orderNumber: 'ORD-2024-001', customer: 'Cafe Central', orderDate: '2024-01-20', totalAmount: 3500, status: 'completed' },
-        { id: 2, orderNumber: 'ORD-2024-002', customer: 'Bean There Co', orderDate: '2024-01-21', totalAmount: 5200, status: 'processing' },
-        { id: 3, orderNumber: 'ORD-2024-003', customer: 'Morning Brew Ltd', orderDate: '2024-01-22', totalAmount: 2800, status: 'pending' },
-        { id: 4, orderNumber: 'ORD-2024-004', customer: 'Espresso Express', orderDate: '2024-01-22', totalAmount: 4100, status: 'shipped' },
-      ]);
-      setLoading(false);
-    }, 500);
-  }, []);
 
   const filteredOrders = orders.filter(o => 
     o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||

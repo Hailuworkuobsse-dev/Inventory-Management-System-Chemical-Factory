@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useGetWorkOrdersQuery } from '../../../services/productionEndpoints';
 import { useNavigate } from 'react-router-dom';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
@@ -17,19 +18,18 @@ const columns = [
 export default function WorkOrderListPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState([]);
+  const { data: response, isLoading: loading, isError, refetch } = useGetWorkOrdersQuery();
+  const raw = Array.isArray(response) ? response : response?.data || [];
+  const orders = raw.map((wo) => ({
+    id: wo.id,
+    workOrderNumber: wo.orderNumber || wo.workOrderNumber,
+    productName: wo.product?.name || wo.productName || '-',
+    quantity: wo.plannedQuantity ?? wo.quantity ?? 0,
+    startDate: (wo.startDate || '').slice(0, 10),
+    dueDate: (wo.dueDate || '').slice(0, 10),
+    status: wo.status || 'pending',
+  }));
   const [searchTerm, setSearchTerm] = useState('');
-
-  useEffect(() => {
-    setTimeout(() => {
-      setOrders([
-        { id: 1, workOrderNumber: 'WO-2024-001', productName: 'Premium Coffee Blend', quantity: 500, startDate: '2024-01-20', dueDate: '2024-01-25', status: 'in_progress' },
-        { id: 2, workOrderNumber: 'WO-2024-002', productName: 'Espresso Pack 250g', quantity: 300, startDate: '2024-01-22', dueDate: '2024-01-27', status: 'pending' },
-        { id: 3, workOrderNumber: 'WO-2024-003', productName: 'Decaf Selection', quantity: 200, startDate: '2024-01-18', dueDate: '2024-01-23', status: 'completed' },
-      ]);
-      setLoading(false);
-    }, 500);
-  }, []);
 
   const filteredOrders = orders.filter(o => 
     o.workOrderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||

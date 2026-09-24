@@ -1,91 +1,93 @@
 import { apiSlice } from './apiSlice';
 
+/**
+ * Inventory endpoints — aligned with backend /api/v1/inventory routes:
+ * GET  /stock, GET /stock/:stockId, POST /receipts, GET /receipts/:id,
+ * PUT  /receipts/:id/accept, POST /stock/transfer|adjustment|dispose,
+ * POST /picking/reserve|confirm|pick-and-ship
+ */
 export const inventoryApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // Get all inventory items
-    getInventory: builder.query({
-      query: (params) => ({
-        url: '/inventory',
-        params,
-      }),
+    getStock: builder.query({
+      query: (params) => ({ url: '/inventory/stock', params }),
       providesTags: ['Inventory'],
     }),
 
-    // Get single inventory item
-    getInventoryById: builder.query({
-      query: (id) => `/inventory/${id}`,
+    getStockById: builder.query({
+      query: (id) => `/inventory/stock/${id}`,
       providesTags: (result, error, id) => [{ type: 'Inventory', id }],
     }),
 
-    // Update inventory quantity
-    updateInventory: builder.mutation({
-      query: ({ id, ...data }) => ({
-        url: `/inventory/${id}`,
-        method: 'PATCH',
-        body: data,
-      }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'Inventory', id }],
+    getReceipts: builder.query({
+      query: (params) => ({ url: '/inventory/receipts', params }),
+      providesTags: ['Receipts'],
     }),
 
-    // Batch update inventory
-    batchUpdateInventory: builder.mutation({
-      query: (items) => ({
-        url: '/inventory/batch-update',
-        method: 'POST',
-        body: { items },
+    getReceiptById: builder.query({
+      query: (id) => `/inventory/receipts/${id}`,
+      providesTags: (result, error, id) => [{ type: 'Receipts', id }],
+    }),
+
+    // Offline-aware: replayed verbatim by the sync worker when connectivity returns.
+    createReceipt: builder.mutation({
+      query: (body) => ({ url: '/inventory/receipts', method: 'POST', body }),
+      invalidatesTags: ['Receipts', 'Inventory'],
+    }),
+
+    acceptReceipt: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/inventory/receipts/${id}/accept`,
+        method: 'PUT',
+        body,
       }),
+      invalidatesTags: (result, error, { id }) => ['Inventory', { type: 'Receipts', id }],
+    }),
+
+    transferStock: builder.mutation({
+      query: (body) => ({ url: '/inventory/stock/transfer', method: 'POST', body }),
       invalidatesTags: ['Inventory'],
     }),
 
-    // Get low stock items
-    getLowStock: builder.query({
-      query: () => '/inventory/low-stock',
-      providesTags: ['Inventory'],
+    adjustStock: builder.mutation({
+      query: (body) => ({ url: '/inventory/stock/adjustment', method: 'POST', body }),
+      invalidatesTags: ['Inventory'],
     }),
 
-    // Get out of stock items
-    getOutOfStock: builder.query({
-      query: () => '/inventory/out-of-stock',
-      providesTags: ['Inventory'],
+    disposeStock: builder.mutation({
+      query: (body) => ({ url: '/inventory/stock/dispose', method: 'POST', body }),
+      invalidatesTags: ['Inventory'],
     }),
 
-    // Adjust inventory (manual adjustment)
-    adjustInventory: builder.mutation({
-      query: ({ id, ...data }) => ({
-        url: `/inventory/${id}/adjust`,
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'Inventory', id }],
+    reserveForPicking: builder.mutation({
+      query: (body) => ({ url: '/inventory/picking/reserve', method: 'POST', body }),
+      invalidatesTags: ['Inventory'],
     }),
 
-    // Get inventory history
-    getInventoryHistory: builder.query({
-      query: ({ id }) => `/inventory/${id}/history`,
-      providesTags: ['Inventory'],
+    confirmPicking: builder.mutation({
+      query: (body) => ({ url: '/inventory/picking/confirm', method: 'POST', body }),
+      invalidatesTags: ['Inventory'],
     }),
 
-    // Get stock valuation
-    getStockValuation: builder.query({
-      query: (params) => ({
-        url: '/inventory/valuation',
-        params,
-      }),
-      providesTags: ['Inventory'],
+    pickAndShip: builder.mutation({
+      query: (body) => ({ url: '/inventory/picking/pick-and-ship', method: 'POST', body }),
+      invalidatesTags: ['Inventory'],
     }),
   }),
 });
 
 export const {
-  useGetInventoryQuery,
-  useGetInventoryByIdQuery,
-  useUpdateInventoryMutation,
-  useBatchUpdateInventoryMutation,
-  useGetLowStockQuery,
-  useGetOutOfStockQuery,
-  useAdjustInventoryMutation,
-  useGetInventoryHistoryQuery,
-  useGetStockValuationQuery,
+  useGetStockQuery,
+  useGetStockByIdQuery,
+  useGetReceiptsQuery,
+  useGetReceiptByIdQuery,
+  useCreateReceiptMutation,
+  useAcceptReceiptMutation,
+  useTransferStockMutation,
+  useAdjustStockMutation,
+  useDisposeStockMutation,
+  useReserveForPickingMutation,
+  useConfirmPickingMutation,
+  usePickAndShipMutation,
 } = inventoryApi;
 
 export default inventoryApi;

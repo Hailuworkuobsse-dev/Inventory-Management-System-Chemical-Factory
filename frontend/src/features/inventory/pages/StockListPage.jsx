@@ -1,24 +1,46 @@
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
-
-import { Plus, Filter, Download } from 'lucide-react';import StockTable from '../components/StockTable';
+import { Plus, Download } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import StockTable from '../components/StockTable';
+import LoadingSpinner from '../../../components/LoadingSpinner';
+import EmptyState from '../../../components/EmptyState';
+import { useGetStockQuery } from '../../../services/inventoryEndpoints';
 
 const StockListPage = () => {
-  useSelector((state) => state.auth);
+  const navigate = useNavigate();
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock data - will be replaced with API data
-  const stockItems = [
-    { id: 1, sku: 'SKU-001', name: 'Widget A', quantity: 150, unit: 'pcs', location: 'A-01-01', status: 'available', expiryDate: '2024-12-31' },
-    { id: 2, sku: 'SKU-002', name: 'Widget B', quantity: 75, unit: 'pcs', location: 'A-01-02', status: 'low_stock', expiryDate: '2024-06-30' },
-    { id: 3, sku: 'SKU-003', name: 'Component X', quantity: 200, unit: 'kg', location: 'B-02-01', status: 'available', expiryDate: '2025-03-15' },
-    { id: 4, sku: 'SKU-004', name: 'Part Y', quantity: 5, unit: 'pcs', location: 'C-03-01', status: 'critical', expiryDate: '2024-02-28' },
-  ];
+  const { data: response, isLoading, isError, refetch } = useGetStockQuery();
+
+  if (isError) {
+    toast.error('Failed to load stock levels');
+  }
+
+  const raw = Array.isArray(response) ? response : response?.data || [];
+  const stockItems = raw.map((row) => ({
+    id: row.id,
+    sku: row.product?.sku || row.sku,
+    name: row.product?.name || row.name,
+    quantity: row.quantity,
+    unit: row.unit || row.product?.unit || 'pcs',
+    location: row.location || row.binLocation || row.warehouse?.name || '-',
+    status: row.status || (row.quantity <= 0 ? 'critical' : 'available'),
+    expiryDate: row.expiryDate || row.batch?.expiryDate || null,
+  }));
+
+  const filtered = stockItems.filter((item) => {
+    const matchesSearch =
+      !searchTerm ||
+      item.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filter === 'all' || item.status === filter;
+    return matchesSearch && matchesFilter;
+  });
 
   return (
     <>
-
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
@@ -33,7 +55,10 @@ const StockListPage = () => {
               <Download className="h-4 w-4 mr-2" />
               Export
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+            <button
+              onClick={() => navigate('/inventory/receipts/new')}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Stock
             </button>
@@ -68,27 +93,23 @@ const StockListPage = () => {
                 <option value="quarantine">Quarantine</option>
               </select>
             </div>
-
-            {/* Location Filter */}
-            <div className="sm:w-48">
-              <select className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                <option value="">All Locations</option>
-                <option value="A">Warehouse A</option>
-                <option value="B">Warehouse B</option>
-                <option value="C">Warehouse C</option>
-              </select>
-            </div>
-
-            {/* Filter Button */}
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-              <Filter className="h-4 w-4 mr-2" />
-              More Filters
-            </button>
           </div>
         </div>
 
-        {/* Stock Table */}
-        <StockTable items={stockItems} />
+        {/* Table */}
+        <div className="bg-white rounded-lg shadow">
+          {isLoading ? (
+            <div className="p-10 flex justify-center"><LoadingSpinner /></div>
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              title="No stock found"
+              message="Try adjusting filters or check back once receipts are received."
+              onRetry={() => refetch()}
+            />
+          ) : (
+            <StockTable items={filtered} />
+          )}
+        </div>
       </div>
     </>
   );
