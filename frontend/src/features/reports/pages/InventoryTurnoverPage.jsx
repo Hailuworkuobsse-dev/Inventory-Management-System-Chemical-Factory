@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import AppLayout from '../../../layouts/AppLayout';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import ReportFilterBar from '../components/ReportFilterBar';
 import ExportButtons from '../components/ExportButtons';
@@ -22,7 +21,8 @@ export default function InventoryTurnoverPage() {
   }, []);
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -84,6 +84,6 @@ export default function InventoryTurnoverPage() {
           </>
         )}
       </div>
-    </AppLayout>
+    </>
   );
 }

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import AppLayout from '../../../layouts/AppLayout';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import Breadcrumb from '../../../components/Breadcrumb';
 import { ArrowLeft, Building2, Mail, Phone, MapPin, Star, TrendingUp, Package } from 'lucide-react';
@@ -35,7 +34,8 @@ export default function SupplierDetailPage() {
     }, 500);
   }, [id]);
 
-  if (loading) return <AppLayout><LoadingSpinner /></AppLayout>;
+  if (loading) return <>
+<LoadingSpinner /></>;
 
   const breadcrumbs = [
     { label: 'Suppliers', href: '/procurement/suppliers' },
@@ -43,7 +43,8 @@ export default function SupplierDetailPage() {
   ];
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <button
@@ -146,6 +147,6 @@ export default function SupplierDetailPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 }

@@ -1,22 +1,15 @@
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, FileText } from 'lucide-react';
-import AppLayout from '../../../layouts/AppLayout';
 import Breadcrumb from '../../../components/Breadcrumb';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import RecallInitiateDialog from '../components/RecallInitiateDialog';
 
 const RecallPage = () => {
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  const navigate = useNavigate();
+    const navigate = useNavigate();
   const [showRecallDialog, setShowRecallDialog] = useState(false);
   const [filter, setFilter] = useState('all');
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
 
   // Mock data - will be replaced with API data
   const recalls = [
@@ -42,7 +35,8 @@ const RecallPage = () => {
   ];
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
@@ -115,7 +109,7 @@ const RecallPage = () => {
           />
         )}
       </div>
-    </AppLayout>
+    </>
   );
 };
 

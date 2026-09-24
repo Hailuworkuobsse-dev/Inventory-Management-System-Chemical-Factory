@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import AppLayout from '../../../layouts/AppLayout';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import Breadcrumb from '../../../components/Breadcrumb';
 import StatusBadge from '../../../components/StatusBadge';
@@ -39,7 +38,8 @@ export default function OrderDetailPage() {
     }, 500);
   }, [id]);
 
-  if (loading) return <AppLayout><LoadingSpinner /></AppLayout>;
+  if (loading) return <>
+<LoadingSpinner /></>;
 
   const breadcrumbs = [
     { label: 'Orders', href: '/sales/orders' },
@@ -47,7 +47,8 @@ export default function OrderDetailPage() {
   ];
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -149,6 +150,6 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 }

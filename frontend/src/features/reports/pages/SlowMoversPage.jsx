@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import AppLayout from '../../../layouts/AppLayout';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import ExportButtons from '../components/ExportButtons';
 import ReportFilterBar from '../components/ReportFilterBar';
@@ -21,7 +20,8 @@ export default function SlowMoversPage() {
   }, []);
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -92,6 +92,6 @@ export default function SlowMoversPage() {
           </>
         )}
       </div>
-    </AppLayout>
+    </>
   );
 }

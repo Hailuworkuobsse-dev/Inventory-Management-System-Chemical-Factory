@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import AppLayout from '../../../layouts/AppLayout';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import ExportButtons from '../components/ExportButtons';
 import { ClipboardCheck, FileCheck, AlertCircle } from 'lucide-react';
@@ -23,7 +22,8 @@ export default function AuditReportPage() {
   ];
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -88,6 +88,6 @@ export default function AuditReportPage() {
           </>
         )}
       </div>
-    </AppLayout>
+    </>
   );
 }

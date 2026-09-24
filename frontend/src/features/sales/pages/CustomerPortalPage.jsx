@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import AppLayout from '../../../layouts/AppLayout';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { Users, Package, TrendingUp, Clock } from 'lucide-react';
 
@@ -23,10 +22,12 @@ export default function CustomerPortalPage() {
     { id: 3, orderNumber: 'ORD-2024-003', date: '2024-01-22', total: 2800, status: 'pending' },
   ];
 
-  if (loading) return <AppLayout><LoadingSpinner /></AppLayout>;
+  if (loading) return <>
+<LoadingSpinner /></>;
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Customer Portal</h1>
@@ -107,6 +108,6 @@ export default function CustomerPortalPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 }

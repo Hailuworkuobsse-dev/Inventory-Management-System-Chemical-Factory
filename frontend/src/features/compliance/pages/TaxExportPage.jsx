@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import AppLayout from '../../../layouts/AppLayout';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import ExportButtons from '../components/ExportButtons';
 import { FileText, DollarSign } from 'lucide-react';
@@ -16,7 +15,8 @@ export default function TaxExportPage() {
   }, []);
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -81,6 +81,6 @@ export default function TaxExportPage() {
           </>
         )}
       </div>
-    </AppLayout>
+    </>
   );
 }

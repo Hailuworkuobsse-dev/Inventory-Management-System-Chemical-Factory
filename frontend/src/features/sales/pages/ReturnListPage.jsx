@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import AppLayout from '../../../layouts/AppLayout';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import LoadingSpinner from '../../../components/LoadingSpinner';
@@ -36,7 +35,8 @@ export default function ReturnListPage() {
   );
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Returns</h1>
@@ -66,6 +66,6 @@ export default function ReturnListPage() {
           </div>
         )}
       </div>
-    </AppLayout>
+    </>
   );
 }

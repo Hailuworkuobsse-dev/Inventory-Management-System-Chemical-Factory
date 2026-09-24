@@ -1,20 +1,15 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Navigate } from 'react-router-dom';
+
 import { Package, Plus, Filter, Download } from 'lucide-react';
-import AppLayout from '../../../layouts/AppLayout';
 import StockTable from '../components/StockTable';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 
 const StockListPage = () => {
-  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
 
   // Mock data - will be replaced with API data
   const stockItems = [
@@ -25,7 +20,8 @@ const StockListPage = () => {
   ];
 
   return (
-    <AppLayout>
+    <>
+
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
@@ -97,7 +93,7 @@ const StockListPage = () => {
         {/* Stock Table */}
         <StockTable items={stockItems} />
       </div>
-    </AppLayout>
+    </>
   );
 };
 
