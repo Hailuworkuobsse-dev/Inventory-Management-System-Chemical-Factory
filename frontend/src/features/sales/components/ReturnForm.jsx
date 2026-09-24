@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Package, AlertCircle } from 'lucide-react';
 
-export default function ReturnForm({ orderId, onSubmit, onCancel }) {
+export default function ReturnForm({ orderId, onSubmit, onCancel: onClose }) {
   const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState([]);
   const [reason, setReason] = useState('');
@@ -43,7 +43,7 @@ export default function ReturnForm({ orderId, onSubmit, onCancel }) {
               <Package size={20} />
               Create Return
             </h3>
-            <button onClick={onCancel} className="p-1 hover:bg-gray-100 rounded-lg">
+            <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
               <X size={20} />
             </button>
           </div>
@@ -125,7 +125,7 @@ export default function ReturnForm({ orderId, onSubmit, onCancel }) {
             <div className="flex gap-3 pt-4">
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={onClose}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Cancel

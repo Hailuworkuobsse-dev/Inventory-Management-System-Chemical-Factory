@@ -1,4 +1,4 @@
-import { Eye, Edit, AlertTriangle } from 'lucide-react';
+import { Eye, Edit, AlertTriangle, Package } from 'lucide-react';
 import StatusBadge from '../../../components/StatusBadge';
 import ExpiryCountdown from '../../../components/ExpiryCountdown';
 

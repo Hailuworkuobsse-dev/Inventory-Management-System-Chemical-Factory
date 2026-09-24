@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -7,17 +8,17 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@components': path.resolve(__dirname, './src/components'),
-      '@features': path.resolve(__dirname, './src/features'),
-      '@hooks': path.resolve(__dirname, './src/hooks'),
-      '@layouts': path.resolve(__dirname, './src/layouts'),
-      '@lib': path.resolve(__dirname, './src/lib'),
-      '@routes': path.resolve(__dirname, './src/routes'),
-      '@services': path.resolve(__dirname, './src/services'),
-      '@store': path.resolve(__dirname, './src/store'),
-      '@styles': path.resolve(__dirname, './src/styles'),
-      '@utils': path.resolve(__dirname, './src/utils'),
+      '@': path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src'),
+      '@components': path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/components'),
+      '@features': path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/features'),
+      '@hooks': path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/hooks'),
+      '@layouts': path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/layouts'),
+      '@lib': path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/lib'),
+      '@routes': path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/routes'),
+      '@services': path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/services'),
+      '@store': path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/store'),
+      '@styles': path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/styles'),
+      '@utils': path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/utils'),
     },
   },
   server: {

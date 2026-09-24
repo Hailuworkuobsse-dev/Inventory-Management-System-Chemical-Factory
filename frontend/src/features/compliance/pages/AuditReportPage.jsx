@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import ExportButtons from '../components/ExportButtons';
+import ExportButtons from '../../reports/components/ExportButtons';
 import { ClipboardCheck, FileCheck, AlertCircle } from 'lucide-react';
 
 export default function AuditReportPage() {

@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-globals */
+
 // AIMS Service Worker
 // Caching strategy:
 //   - /api/*, /ws/* and any non-GET request  -> NETWORK ONLY (never cached)

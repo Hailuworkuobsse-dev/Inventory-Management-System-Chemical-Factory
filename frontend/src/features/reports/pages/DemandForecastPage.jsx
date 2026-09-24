@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { usePermission } from '../../hooks/usePermission';
+import { usePermission } from '../../../hooks/usePermission';
 
 const DemandForecastPage = () => {
   const [timeRange, setTimeRange] = useState('30');

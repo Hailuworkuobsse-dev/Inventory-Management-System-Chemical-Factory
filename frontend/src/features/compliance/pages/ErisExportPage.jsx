@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import ExportButtons from '../components/ExportButtons';
-import ReportFilterBar from '../components/ReportFilterBar';
+import ExportButtons from '../../reports/components/ExportButtons';
+import ReportFilterBar from '../../reports/components/ReportFilterBar';
 import { FileCheck, AlertTriangle } from 'lucide-react';
 
 export default function ErisExportPage() {
