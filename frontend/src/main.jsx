@@ -1,3 +1,6 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 import AppRoutes from './routes';
@@ -29,42 +32,58 @@ if ('serviceWorker' in navigator) {
   }
 }
 
-function Main() {
+function App() {
   useOfflineSync();
+
   return (
-    <ErrorBoundary>
-      <Provider store={store}>
-        <AppRoutes />
-        <div className="fixed bottom-4 right-4 z-50">
-          <SyncStatusBadge />
-        </div>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
+    <BrowserRouter>
+      <AppRoutes />
+      <div className="fixed bottom-4 right-4 z-50">
+        <SyncStatusBadge />
+      </div>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#22c55e',
+              secondary: '#fff',
             },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: '#22c55e',
-                secondary: '#fff',
-              },
+          },
+          error: {
+            duration: 5000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
             },
-            error: {
-              duration: 5000,
-              iconTheme: {
-                primary: '#ef4444',
-                secondary: '#fff',
-              },
-            },
-          }}
-        />
-      </Provider>
-    </ErrorBoundary>
+          },
+        }}
+      />
+    </BrowserRouter>
   );
+}
+
+function Main() {
+  return (
+    <React.StrictMode>
+      <ErrorBoundary>
+        <Provider store={store}>
+          <App />
+        </Provider>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+}
+
+const rootElement = document.getElementById('root');
+if (rootElement) {
+  ReactDOM.createRoot(rootElement).render(<Main />);
 }
 
 export default Main;
