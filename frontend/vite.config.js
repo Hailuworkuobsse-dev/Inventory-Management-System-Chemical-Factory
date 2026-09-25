@@ -22,15 +22,15 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 3212,
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:3211',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://localhost:5000',
+        target: 'ws://localhost:3211',
         ws: true,
       },
     },
@@ -40,7 +40,7 @@ export default defineConfig({
     globals: true,
     server: { deps: { inline: ['msw'] } },
     // give jsdom an absolute base URL so relative fetches (/api/v1/...) work
-    environmentOptions: { jsdom: { url: 'http://localhost:3000/' } },
+    environmentOptions: { jsdom: { url: 'http://localhost:3212/' } },
     setupFiles: ['./src/test/setup.js'],
     css: false,
     restoreMocks: true,
