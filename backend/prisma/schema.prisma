@@ -89,6 +89,8 @@ model Warehouse {
   isActive      Boolean  @default(true)
   scopeUsers    User[]   @relation("UserScope")
 
+  receipts  Receipt[]                       // ADD
+
   zones         Zone[]
   stock         Stock[]
   warehouseCost ProductWarehouseCost[]
@@ -103,6 +105,13 @@ model Zone {
   capacity    Decimal?  @db.Decimal(10,2)
 
   bins         Bin[]
+  
+  stocks Stock[]                            // ADD (matches the optional `zone Zone?` in Stock)
+  
+  receiptItems    ReceiptItem[]  // Incoming from receipts
+  salesItems      SalesOrderItem[] // Outgoing via sales orders
+  workOrderItems  WorkOrderOutput[]  // Internal usage
+  adjustments     AdjustmentLog[]    // Adjustments
 
   @@index([warehouseId, type])
 }
@@ -145,6 +154,10 @@ model Product {
   category      ProductCategory
   subCategory   String?
   unitOfMeasure String    @default("EA")
+
+  purchaseOrderItems  PurchaseOrderItem[]   // ADD
+  receiptItems        ReceiptItem[]         // ADD
+  workOrders          WorkOrder[]           // ADD
 
   requiresColdChain Boolean   @default(false)
   isHazardous        Boolean   @default(false)
@@ -491,6 +504,10 @@ model Stock {
   reservedQty Decimal   @default(0) @db.Decimal(15,4)
   unitCost    Decimal?  @db.Decimal(15,6)
   costLayerId Int?
+
+  productId   String   // Add this field if missing
+  expiryDate  DateTime // Add this field if missing (use DateTime? if nullable)
+
   costLayer   CostLayer? @relation(fields: [costLayerId], references: [id])
 
   @@unique([warehouseId, batchId, binId])
@@ -648,6 +665,8 @@ model BOM {
   version     Int      @default(1)
   isActive    Boolean  @default(true)
   approvedBy  Int?
+
+  workOrders WorkOrder[]                    // ADD
   approvedAt  DateTime?
   items       BOMItem[]
 }
@@ -682,6 +701,18 @@ enum WorkOrderStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+model AdjustmentLog {
+  id            Int      @id @default(autoincrement())
+  productId     Int
+  product       Product  @relation(fields: [productId], references: [id])
+  quantity      Decimal  @db.Decimal(15, 4)
+  reason        String
+  adjustedBy    String?
+  createdAt     DateTime @default(now())
+
+  @@index([productId])
 }
 
 model WorkOrderMaterial {
