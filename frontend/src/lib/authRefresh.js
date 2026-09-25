@@ -1,5 +1,3 @@
-import { store } from '../store/store';
-
 /**
  * Shared token-refresh helper used by both the axios interceptor and the
  * RTK Query baseQueryWithReauth wrapper.
@@ -13,11 +11,21 @@ import { store } from '../store/store';
  * Concurrent callers share a single in-flight refresh promise.
  */
 let refreshInFlight = null;
+let _store = null;
+
+export const injectStore = (storeInstance) => {
+  _store = storeInstance;
+};
+
+const getStore = () => _store;
 
 export const refreshAuthToken = () => {
   if (refreshInFlight) return refreshInFlight;
 
   const run = (async () => {
+    const store = getStore();
+    if (!store) return null;
+
     const state = store.getState();
     const refreshToken = state.auth?.refreshToken;
     const user = state.auth?.user;

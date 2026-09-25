@@ -5,7 +5,6 @@ import ExportButtons from '../components/ExportButtons';
 import ReportFilterBar from '../components/ReportFilterBar';
 
 export default function AbcAnalysisPage() {
-  const [loading, setLoading] = useState(true);
   const { data: response, isLoading: loading, isError, refetch } = useGetAbcAnalysisQuery();
   const raw = Array.isArray(response) ? response : response?.data || response?.items || [];
   const data = raw.map((r) => ({

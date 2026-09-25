@@ -17,7 +17,6 @@ const columns = [
 
 export default function BomListPage() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const { data: response, isLoading: loading, isError, refetch } = useGetBomsQuery();
   const raw = Array.isArray(response) ? response : response?.data || [];
   const boms = raw.map((b) => ({

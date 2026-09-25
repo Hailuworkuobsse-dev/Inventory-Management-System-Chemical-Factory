@@ -4,6 +4,7 @@ import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 import offlineQueueReducer from './slices/offlineQueueSlice';
 import { apiSlice } from '../services/apiSlice';
+import { injectStore } from '../lib/authRefresh';
 
 export const store = configureStore({
   reducer: {
@@ -20,10 +21,12 @@ export const store = configureStore({
         // Ignore these field paths in state
         ignoredPaths: ['auth.user.avatar'],
       },
-    }, thunk: { extraArgument: { invapi: apiSlice } })
-      .concat(apiSlice.middleware),
+      thunk: { extraArgument: { invapi: apiSlice } },
+    }).concat(apiSlice.middleware),
   devTools: import.meta.env.DEV,
 });
+
+injectStore(store);
 
 // RTK Query refetch-on-focus/reconnect listeners (no-op outside browsers)
 setupListeners(store.dispatch);

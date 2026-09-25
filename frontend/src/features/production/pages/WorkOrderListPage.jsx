@@ -17,7 +17,6 @@ const columns = [
 
 export default function WorkOrderListPage() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const { data: response, isLoading: loading, isError, refetch } = useGetWorkOrdersQuery();
   const raw = Array.isArray(response) ? response : response?.data || [];
   const orders = raw.map((wo) => ({
