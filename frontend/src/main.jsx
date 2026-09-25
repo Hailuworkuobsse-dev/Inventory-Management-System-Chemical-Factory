@@ -7,18 +7,26 @@ import SyncStatusBadge from './components/SyncStatusBadge';
 import useOfflineSync from './hooks/useOfflineSync';
 import './styles/globals.css';
 
-// Register service worker for PWA
+// Register service worker for PWA in production; unregister in development to avoid breaking Vite HMR
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/service-worker.js')
-      .then((registration) => {
-        console.log('SW registered:', registration);
-      })
-      .catch((error) => {
-        console.log('SW registration failed:', error);
-      });
-  });
+  if (import.meta.env.PROD) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/service-worker.js')
+        .then((registration) => {
+          console.log('SW registered:', registration);
+        })
+        .catch((error) => {
+          console.log('SW registration failed:', error);
+        });
+    });
+  } else {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const registration of registrations) {
+        registration.unregister();
+      }
+    });
+  }
 }
 
 function Main() {
