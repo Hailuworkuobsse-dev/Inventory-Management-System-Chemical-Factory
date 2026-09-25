@@ -178,6 +178,7 @@ model Product {
   priceHistory      ProductPrice[]
   warehouseCosts    ProductWarehouseCost[]
   alertThresholds   AlertThreshold[]
+  adjustmentLogs    AdjustmentLog[] // ADDED opposite relation for AdjustmentLog.product
 }
 
 enum ProductCategory {
@@ -397,6 +398,9 @@ model ReceiptItem {
   currency         String   @default("USD")
   quarantine       Boolean  @default(true)
   labTestRequired  Boolean  @default(false)
+
+  zoneId           Int?
+  zone             Zone?    @relation(fields: [zoneId], references: [id], onDelete: SetNull) // ADDED opposite relation for Zone.receiptItems
 }
 
 // ==========================================================================
@@ -588,6 +592,9 @@ model SalesOrderItem {
   unitPrice    Decimal   @db.Decimal(15,4)
   pickedQty    Decimal   @default(0)
   shippedQty   Decimal   @default(0)
+
+  zoneId       Int?
+  zone         Zone?    @relation(fields: [zoneId], references: [id], onDelete: SetNull) // ADDED opposite relation for Zone.salesItems
 }
 
 model Return {
@@ -712,6 +719,9 @@ model AdjustmentLog {
   adjustedBy    String?
   createdAt     DateTime @default(now())
 
+  zoneId        Int?
+  zone          Zone?      @relation(fields: [zoneId], references: [id], onDelete: SetNull) // ADDED opposite relation for Zone.adjustments
+
   @@index([productId])
 }
 
@@ -733,6 +743,9 @@ model WorkOrderOutput {
   batchNumber String
   quantity    Decimal  @db.Decimal(15,4)
   createdDate DateTime @default(now())
+
+  zoneId      Int?
+  zone        Zone?    @relation(fields: [zoneId], references: [id], onDelete: SetNull) // ADDED opposite relation for Zone.workOrderItems
 }
 
 // ==========================================================================
